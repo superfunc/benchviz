@@ -2,3 +2,4 @@
 **/*.rs.bk
 bb.json
 Cargo.lock
+/.vscode
