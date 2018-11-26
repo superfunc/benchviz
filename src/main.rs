@@ -1,3 +1,5 @@
+#![feature(concat_idents)]
+
 extern crate clap;
 #[macro_use]
 extern crate serde_derive;
@@ -16,14 +18,14 @@ struct BenchResult {
     iterations: i64,
     real_time: f64,
     cpu_time: f64,
-    time_unit: String
+    time_unit: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct BenchContextInfo {
     level: i64,
     size: i64,
-    num_sharing: i64
+    num_sharing: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -34,31 +36,37 @@ struct BenchContext {
     mhz_per_cpu: i64,
     cpu_scaling_enabled: bool,
     caches: Vec<BenchContextInfo>,
-    library_build_type: String
+    library_build_type: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct IndividualBenchInfo {
-    context: BenchContext,
-    benchmarks: Vec<BenchResult>
+    context: Option<BenchContext>,
+    benchmarks: Vec<BenchResult>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct BenchHeader {
     // TODO: Make this a Path, not a string
     root: String,
-    description: String
+    description: String,
 }
 
 type BenchId = String;
-type BenchInfo = HashMap<BenchId, Vec<BenchResult>>;
-
-// XXX: Figure out naming here
 type TopLevelBenchInfo = HashMap<BenchId, BenchHeader>;
 
-fn read_config() -> TopLevelBenchInfo {
-    let config_file = env::current_dir().unwrap().join(Path::new("bb.json"));
+fn print_banner() { 
+    println!("--------------------------------------------------------");
+}
+
+macro_rules! config_root {
+    () => (env::home_dir().unwrap().join(Path::new(".config/")).join(Path::new("bb/")).as_path())
+}
+
+fn read_top_level_config() -> TopLevelBenchInfo {
+    let config_file = config_root!().join(Path::new("top.json"));
     if !config_file.is_file() {
+        fs::File::create(config_file);
         return TopLevelBenchInfo::new();
     }
 
@@ -66,103 +74,130 @@ fn read_config() -> TopLevelBenchInfo {
     let benches: Result<TopLevelBenchInfo, serde_json::Error> = serde_json::from_str(&raw_contents);
     match benches.ok() {
         Some(v) => return v,
-        None => return TopLevelBenchInfo::new()
+        None => return TopLevelBenchInfo::new(),
+    }
+}
+
+fn read_individual_config(name: &str, header: &BenchHeader) -> IndividualBenchInfo {
+    let config_file = config_root!().join(Path::new(name)).join("info.json");
+    if config_file.is_file() {
+        let raw_contents = String::from_utf8_lossy(&fs::read(config_file).unwrap()).to_string();
+        let benches: Result<IndividualBenchInfo, serde_json::Error> = serde_json::from_str(&raw_contents);
+        return benches.unwrap();
+    } else {
+        panic!("Unable to find expected config file: {:?}", config_file);
     }
 }
 
 fn handle_list() -> () {
-    let benches = read_config();
+    let benches = read_top_level_config();
+    print_banner();
+    println!("{} benchmarks found: ", benches.len());
     for (id, info) in benches {
-        println!("Name: {:?}\nDescription: {:?}\nLocation{:?}", id, info.description, info.root);
+        println!("\nName: {:?}\nDescription: {:?}\nLocation: {:?}", 
+                 id, info.description, info.root);
+        print_banner();
+    }
+}
+
+fn handle_new(name: &str) -> () {
+    let mut benches = read_top_level_config();
+    match benches.get(name) {
+        Some(header) => {
+            println!("Name {:?} already exists in benchmarks.", name);
+        }
+        None => {
+            // Author skeleton info.json file
+            let individual = config_root!().join(name).join("info.json");
+            fs::create_dir(individual.parent().unwrap());
+            fs::File::create(&individual);
+            let blank_individual_config = IndividualBenchInfo {context: None, benchmarks: vec!()};
+            fs::write(&individual, serde_json::to_string_pretty(&blank_individual_config).unwrap());
+
+            // Update top level json file
+            let top_level = config_root!().join(Path::new("top.json"));
+            benches.insert(name.to_string(), BenchHeader{root:path.to_str().unwrap().to_string(), 
+                                                         description:"".to_string()});
+            fs::write(&top_level, serde_json::to_string_pretty(&benches).unwrap());
+        }
     }
 }
 
 fn handle_info(name: &str) -> () {
-    let benches = read_config(); 
+    let benches = read_top_level_config();
     match benches.get(name) {
-        Some(v) => {
-            let path = Path::new(&v.root).parent().unwrap().join(Path::new("bb.json"));
-            println!("Path checking: {:?}", path);
-            if path.is_file() {
-                let raw_contents = String::from_utf8_lossy(&fs::read(path).unwrap()).to_string();
-                let benches: Result<IndividualBenchInfo, serde_json::Error> = serde_json::from_str(&raw_contents);
-                match benches.ok() {
-                    Some(bi) => println!("# of runs: {:?}", bi.benchmarks.len()),
-                    None => println!("uhhh")
-                }
-            }
+        Some(header) => {
+            let info = read_individual_config(name, &header);
+            println!("# of runs: {:?}", info.benchmarks.len());
+            println!("{:?}", info.context);
         }
-        None => println!("Name not found in benches."),
+        None => println!("Name {:?} not found in benches.", name),
     }
 }
 
-fn handle_run(command: &str, name: &str) -> () {
+fn handle_run(name: &str) -> () {
+    // GET command from name
+    // let command = ;
     //let output = Command::new(command)
     //    .arg("--benchmark_format=json")
     //    .output()
     //    .unwrap();
 
+    //// TODO: Handle changed context's (running benchmarks from different machines)
     //let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
+    //let benches = read_top_level_config();
+    ////let mut local_info = read_individual_config(&benches.get(name).unwrap().root);
 
-    let mut benches = read_config(); 
+    //// TODO: Append to actual results
+    //fs::write(&benches.get(name).unwrap().root, raw);
+}
 
-    benches.insert(name.to_string(), BenchHeader{root:command.to_string(), description: String::new()});
-    let config_file = env::current_dir().unwrap().join(Path::new("bb.json"));
-    let json_contents = serde_json::to_string_pretty(&benches);
-    fs::write(config_file, json_contents.unwrap());
+macro_rules! individual_handle_fn {
+    ($name: ident, $matches: ident) => {
+        if let Some(v) = ($matches).subcommand_matches(stringify!($name)) {
+            match v.value_of("name") {
+                Some(n) => concat_idents!(handle_, $name)(n),
+                None => panic!("No registered handler function."),
+            }
+        }
+    };
+}
+
+macro_rules! top_level_handle_fn {
+    ($name: ident, $matches: ident) => {
+        if let Some(_) = ($matches).subcommand_matches(stringify!($name)) {
+            concat_idents!(handle_, $name)()
+        }
+    };
+}
+
+macro_rules! individual_command {
+    ($name: expr, $desc: expr) => {
+        SubCommand::with_name(stringify!($name))
+            .about($desc)
+            .arg(Arg::with_name("name").value_name("name").index(1))
+    };
+}
+
+macro_rules! top_level_command {
+    ($name: expr, $desc: expr) => {
+        SubCommand::with_name(stringify!($name)).about($desc)
+    };
 }
 
 fn main() {
     let matches = App::new("Benchmarking utility program")
-        .version("0.0")
+        .version("0")
         .author("superfunc")
-        .subcommand(SubCommand::with_name("list").about("list benchmarks"))
-        .subcommand(
-            SubCommand::with_name("info").about("information on an individual benchmark").arg(
-                Arg::with_name("name")
-                    .long("name")
-                    .value_name("name")
-                    .help("XXX")
-                    .takes_value(true),
-            ),
-        )
-        .subcommand(SubCommand::with_name("new").about("create a new benchmark"))
-        .subcommand(SubCommand::with_name("report").about("Create a report for a benchmark"))
-        .subcommand(
-            SubCommand::with_name("run")
-                .about("Run benchmark")
-                .arg(
-                    Arg::with_name("name")
-                        .long("name")
-                        .value_name("name")
-                        .help("XXX")
-                        .takes_value(true),
-                )
-                .arg(
-                    Arg::with_name("binPath")
-                        .long("binPath")
-                        .value_name("binPath")
-                        .help("benchmark to run")
-                        .takes_value(true),
-                ),
-        )
+        .subcommand(top_level_command!(list, "List available benchmarks"))
+        .subcommand(individual_command!(info,"Information on an individual benchmark"))
+        .subcommand(individual_command!(new, "Create a new benchmark"))
+        .subcommand(individual_command!(report, "Generate an html report for a benchmark"))
+        .subcommand(individual_command!(run, "Run another iteration of a benchmark"))
         .get_matches();
 
-    if let Some(v) = matches.subcommand_matches("list") {
-        handle_list();
-    }
-
-    if let Some(v) = matches.subcommand_matches("info") {
-        match v.value_of("name") {
-            Some(n) => handle_info(n),
-            None => panic!("ff"),
-        }
-    }
-
-    if let Some(v) = matches.subcommand_matches("run") {
-        match (v.value_of("binPath"), v.value_of("name")) {
-            (Some(b), Some(n)) => handle_run(b, n),
-            (_, _) => panic!("ff"),
-        }
-    }
+    top_level_handle_fn!(list, matches);
+    individual_handle_fn!(info, matches);
+    individual_handle_fn!(new, matches);
+    individual_handle_fn!(run, matches);
 }
