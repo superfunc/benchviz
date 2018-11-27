@@ -13,7 +13,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 struct BenchResult {
     name: String,
     iterations: i64,
@@ -143,11 +143,7 @@ fn handle_run(name: &str) -> () {
     match benches.get(name) {
         Some(header) => {
             let mut info = read_individual_config(name, &header);
-            let exe = match info.context {
-                Some(v: &BenchContext) => v.executable.to_string(),
-                None => "".to_string()
-            };
-
+            let exe = info.context.as_ref().unwrap().executable.to_string();
             let output = Command::new(&exe)
                 .arg("--benchmark_format=json")
                 .output()
