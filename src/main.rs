@@ -1,4 +1,5 @@
 #![feature(concat_idents)]
+#![feature(nll)]
 
 extern crate clap;
 #[macro_use]
@@ -105,7 +106,7 @@ fn handle_new(name: &str) -> () {
     match benches.get(name) {
         Some(header) => {
             println!("Name {:?} already exists in benchmarks.", name);
-        }
+        },
         None => {
             // Author skeleton info.json file
             let individual = config_root!().join(name).join("info.json");
@@ -116,7 +117,9 @@ fn handle_new(name: &str) -> () {
 
             // Update top level json file
             let top_level = config_root!().join(Path::new("top.json"));
-            benches.insert(name.to_string(), BenchHeader{root:path.to_str().unwrap().to_string(), 
+
+            // FIXME: actually capture paths
+            benches.insert(name.to_string(), BenchHeader{root: "".to_string(),  
                                                          description:"".to_string()});
             fs::write(&top_level, serde_json::to_string_pretty(&benches).unwrap());
         }
@@ -136,20 +139,29 @@ fn handle_info(name: &str) -> () {
 }
 
 fn handle_run(name: &str) -> () {
-    // GET command from name
-    // let command = ;
-    //let output = Command::new(command)
-    //    .arg("--benchmark_format=json")
-    //    .output()
-    //    .unwrap();
+    let benches = read_top_level_config();
+    match benches.get(name) {
+        Some(header) => {
+            let mut info = read_individual_config(name, &header);
+            let exe = match info.context {
+                Some(v: &BenchContext) => v.executable.to_string(),
+                None => "".to_string()
+            };
 
-    //// TODO: Handle changed context's (running benchmarks from different machines)
-    //let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-    //let benches = read_top_level_config();
-    ////let mut local_info = read_individual_config(&benches.get(name).unwrap().root);
+            let output = Command::new(&exe)
+                .arg("--benchmark_format=json")
+                .output()
+                .unwrap();
 
-    //// TODO: Append to actual results
-    //fs::write(&benches.get(name).unwrap().root, raw);
+            let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
+            let mut new_benches : IndividualBenchInfo = serde_json::from_str(&raw).unwrap();
+            info.benchmarks.append(&mut new_benches.benchmarks);
+            let path = config_root!().join(name).join("info.json");
+            fs::write(&path, serde_json::to_string_pretty(&info).unwrap());
+        }
+        None => println!("Name {:?} not found in benches.", name),
+    }
+
 }
 
 macro_rules! individual_handle_fn {
