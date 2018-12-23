@@ -1,6 +1,4 @@
-extern crate serde_json;
-
-// Core types representing 
+// Module containing core types representing
 // - Info coming from google/benchmark (runs, machine info)
 // - Source diffs between changes
 // - Comments between changes
