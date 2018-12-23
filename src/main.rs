@@ -1,58 +1,12 @@
 #![feature(concat_idents)]
 #![feature(nll)]
 
-extern crate clap;
-extern crate dirs;
-extern crate serde_json;
+mod types;
+use self::types::{TopLevelBenchInfo, IndividualBenchInfo, BenchHeader};
 
-use clap::{clap_app, App, Arg, SubCommand};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use clap::clap_app;
 use std::path::Path;
 use std::{fs, process};
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-struct BenchResult {
-    name: String,
-    iterations: i64,
-    real_time: f64,
-    cpu_time: f64,
-    time_unit: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct BenchContextInfo {
-    level: i64,
-    size: i64,
-    num_sharing: i64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct BenchContext {
-    date: String,
-    executable: String,
-    num_cpus: i64,
-    mhz_per_cpu: i64,
-    cpu_scaling_enabled: bool,
-    caches: Vec<BenchContextInfo>,
-    library_build_type: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct IndividualBenchInfo {
-    context: Option<BenchContext>,
-    benchmarks: Vec<BenchResult>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct BenchHeader {
-    // TODO: Make this a Path, not a string
-    root: String,
-    description: String,
-}
-
-type BenchId = String;
-type TopLevelBenchInfo = HashMap<BenchId, BenchHeader>;
 
 // Terminal information display functions
 fn print_banner() {

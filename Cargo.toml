@@ -1,5 +1,5 @@
 [package]
-name = "benchviz_rs"
+name = "benchviz"
 version = "0.1.0"
 authors = ["superfunc <superfunc@users.noreply.github.com>"]
 edition = "2018"
