@@ -9,6 +9,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// TODO: Cleanup naming of types, seems a bit inconsistent
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BenchResult {
     pub name: String,

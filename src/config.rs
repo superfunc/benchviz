@@ -28,12 +28,12 @@ pub fn ensure_initialized() {
         return;
     }
 
+    let config_msg = format!(
+        "There is no config directory for bb, can I create one at {}?",
+        &dir.to_string_lossy()
+    );
     if !dialoguer::Confirmation::new()
-        .with_text(&format!(
-            "There is no config directory for bb, \
-             can I create one at {}?",
-            &dir.to_string_lossy()
-        ))
+        .with_text(&config_msg)
         .interact()
         .unwrap()
     {
