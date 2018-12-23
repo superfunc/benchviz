@@ -1,4 +1,5 @@
-> WIP
+![build status](https://travis-ci.org/superfunc/benchviz.svg?branch=master)
+> WIP 
 
 A tool for cataloging, annotating & plotting C++ benchmarks
 written with [google/benchmark](github.com/google/benchmark).
