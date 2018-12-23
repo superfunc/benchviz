@@ -2,16 +2,14 @@
 #![feature(nll)]
 
 extern crate clap;
-#[macro_use]
-extern crate serde_derive;
+extern crate dirs;
 extern crate serde_json;
 
-use clap::{App, Arg, SubCommand};
+use clap::{clap_app, App, Arg, SubCommand};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
-use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::{fs, process};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct BenchResult {
@@ -56,19 +54,50 @@ struct BenchHeader {
 type BenchId = String;
 type TopLevelBenchInfo = HashMap<BenchId, BenchHeader>;
 
-fn print_banner() { 
+// Terminal information display functions
+fn print_banner() {
     println!("--------------------------------------------------------");
 }
 
+fn print_user_error(msg: &str) {
+    println!("ERROR: {:}.\nSee usage with \"benchviz -h\"", msg);
+}
+
 macro_rules! config_root {
-    () => (env::home_dir().unwrap().join(Path::new(".config/")).join(Path::new("bb/")).as_path())
+    () => {
+        dirs::home_dir()
+            .unwrap()
+            .join(dirs::config_dir().unwrap())
+            .join(Path::new("bb/"))
+            .as_path()
+    };
+}
+
+fn ensure_initialized() {
+    let dir = config_root!().to_owned();
+    if dir.exists() {
+        return;
+    }
+
+    if !dialoguer::Confirmation::new().with_text(
+        &format!(
+            "There is no config directory for bb, \
+             can I create one at {}?", 
+        &dir.to_string_lossy())).interact().unwrap() 
+    {
+        println!("Ok, exiting simulation.");
+    } else {
+        std::fs::create_dir(dir); 
+    }
 }
 
 fn read_top_level_config() -> TopLevelBenchInfo {
     let config_file = config_root!().join(Path::new("top.json"));
     if !config_file.is_file() {
-        fs::File::create(config_file);
-        return TopLevelBenchInfo::new();
+        match fs::File::create(config_file) {
+            Err(_) => panic!("Failed to create config file"),
+            _ => return TopLevelBenchInfo::new(),
+        }
     }
 
     let raw_contents = String::from_utf8_lossy(&fs::read(config_file).unwrap()).to_string();
@@ -83,7 +112,8 @@ fn read_individual_config(name: &str, header: &BenchHeader) -> IndividualBenchIn
     let config_file = config_root!().join(Path::new(name)).join("info.json");
     if config_file.is_file() {
         let raw_contents = String::from_utf8_lossy(&fs::read(config_file).unwrap()).to_string();
-        let benches: Result<IndividualBenchInfo, serde_json::Error> = serde_json::from_str(&raw_contents);
+        let benches: Result<IndividualBenchInfo, serde_json::Error> =
+            serde_json::from_str(&raw_contents);
         return benches.unwrap();
     } else {
         panic!("Unable to find expected config file: {:?}", config_file);
@@ -95,33 +125,59 @@ fn handle_list() -> () {
     print_banner();
     println!("{} benchmarks found: ", benches.len());
     for (id, info) in benches {
-        println!("\nName: {:?}\nDescription: {:?}\nLocation: {:?}", 
-                 id, info.description, info.root);
+        println!(
+            "\nName: {:?}\nDescription: {:?}\nLocation: {:?}",
+            id, info.description, info.root
+        );
         print_banner();
     }
 }
 
-fn handle_new(name: &str) -> () {
+fn handle_new() -> () {
+    let name: String = dialoguer::Input::new()
+        .with_prompt("Enter a name for the benchmark")
+        .interact()
+        .unwrap();
+    let loc: String = dialoguer::Input::new()
+        .with_prompt("Enter a source location")
+        .interact()
+        .unwrap();
+    let desc: String = dialoguer::Input::new()
+        .with_prompt("Describe this benchmark")
+        .interact()
+        .unwrap();
+
     let mut benches = read_top_level_config();
-    match benches.get(name) {
+    match benches.get(&name) {
         Some(header) => {
             println!("Name {:?} already exists in benchmarks.", name);
-        },
+        }
         None => {
             // Author skeleton info.json file
-            let individual = config_root!().join(name).join("info.json");
-            fs::create_dir(individual.parent().unwrap());
-            fs::File::create(&individual);
-            let blank_individual_config = IndividualBenchInfo {context: None, benchmarks: vec!()};
-            fs::write(&individual, serde_json::to_string_pretty(&blank_individual_config).unwrap());
+            let individual = config_root!().join(&name).join("info.json");
+            fs::create_dir(individual.parent().unwrap()).unwrap();
+            fs::File::create(&individual).unwrap();
+            let blank_individual_config = IndividualBenchInfo {
+                context: None,
+                benchmarks: vec![],
+            };
+            fs::write(
+                &individual,
+                serde_json::to_string_pretty(&blank_individual_config).unwrap(),
+            )
+            .unwrap();
 
             // Update top level json file
             let top_level = config_root!().join(Path::new("top.json"));
 
-            // FIXME: actually capture paths
-            benches.insert(name.to_string(), BenchHeader{root: "".to_string(),  
-                                                         description:"".to_string()});
-            fs::write(&top_level, serde_json::to_string_pretty(&benches).unwrap());
+            benches.insert(
+                name.to_string(),
+                BenchHeader {
+                    root: loc.to_string(),
+                    description: desc.to_string(),
+                },
+            );
+            fs::write(&top_level, serde_json::to_string_pretty(&benches).unwrap()).unwrap();
         }
     }
 }
@@ -144,20 +200,19 @@ fn handle_run(name: &str) -> () {
         Some(header) => {
             let mut info = read_individual_config(name, &header);
             let exe = info.context.as_ref().unwrap().executable.to_string();
-            let output = Command::new(&exe)
+            let output = process::Command::new(&exe)
                 .arg("--benchmark_format=json")
                 .output()
                 .unwrap();
 
             let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-            let mut new_benches : IndividualBenchInfo = serde_json::from_str(&raw).unwrap();
+            let mut new_benches: IndividualBenchInfo = serde_json::from_str(&raw).unwrap();
             info.benchmarks.append(&mut new_benches.benchmarks);
             let path = config_root!().join(name).join("info.json");
-            fs::write(&path, serde_json::to_string_pretty(&info).unwrap());
+            fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
         }
         None => println!("Name {:?} not found in benches.", name),
     }
-
 }
 
 macro_rules! individual_handle_fn {
@@ -165,7 +220,14 @@ macro_rules! individual_handle_fn {
         if let Some(v) = ($matches).subcommand_matches(stringify!($name)) {
             match v.value_of("name") {
                 Some(n) => concat_idents!(handle_, $name)(n),
-                None => panic!("No registered handler function."),
+                None => {
+                    print_user_error(
+                        "This command requires a name \
+                         argument denoting the benchmark \
+                         it corresponds to.",
+                    );
+                    process::exit(1);
+                }
             }
         }
     };
@@ -179,33 +241,30 @@ macro_rules! top_level_handle_fn {
     };
 }
 
-macro_rules! individual_command {
-    ($name: expr, $desc: expr) => {
-        SubCommand::with_name(stringify!($name))
-            .about($desc)
-            .arg(Arg::with_name("name").value_name("name").index(1))
-    };
-}
-
-macro_rules! top_level_command {
-    ($name: expr, $desc: expr) => {
-        SubCommand::with_name(stringify!($name)).about($desc)
-    };
-}
-
 fn main() {
-    let matches = App::new("Benchmarking utility program")
-        .version("0")
-        .author("superfunc")
-        .subcommand(top_level_command!(list, "List available benchmarks"))
-        .subcommand(individual_command!(info,"Information on an individual benchmark"))
-        .subcommand(individual_command!(new, "Create a new benchmark"))
-        .subcommand(individual_command!(report, "Generate an html report for a benchmark"))
-        .subcommand(individual_command!(run, "Run another iteration of a benchmark"))
-        .get_matches();
+    let matches = clap_app!(myapp =>
+       (version: "1.0")
+       (author: "superfunc <superfunc@users.noreply.github.com>")
+       (about: "A utility for managing Google benchmark.")
+       (@subcommand list =>
+          (about: "List available benchmarks"))
+       (@subcommand info =>
+          (about: "Information on an individual benchmark")
+          (@arg name: "Name of benchmark"))
+       (@subcommand new =>
+          (about: "Create a new benchmark"))
+       (@subcommand report =>
+          (about: "Generate an visual report for a benchmark.")
+          (@arg name: "Name of benchmark"))
+       (@subcommand run =>
+          (about: "Run another iteration of a benchmark.")
+          (@arg name: "Name of benchmark")))
+    .get_matches();
+
+    ensure_initialized();
 
     top_level_handle_fn!(list, matches);
+    top_level_handle_fn!(new, matches);
     individual_handle_fn!(info, matches);
-    individual_handle_fn!(new, matches);
     individual_handle_fn!(run, matches);
 }

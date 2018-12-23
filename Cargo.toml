@@ -3,9 +3,11 @@ name = "benchviz_rs"
 version = "0.1.0"
 authors = ["superfunc <superfunc@users.noreply.github.com>"]
 edition = "2018"
+proc-macro = true
 
 [dependencies]
-serde = "1.0.80"
+serde = { version = "1.0.82", features = ['derive'] }
 serde_json = "1.0"
-serde_derive = "1.0.80"
 clap = "2.32.0"
+dialoguer = "0.3.0"
+dirs = "1.0.4"
