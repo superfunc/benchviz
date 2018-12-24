@@ -4,10 +4,8 @@
 use std::fs;
 use std::process;
 
-use plotlib::barchart::BarChart;
 use plotlib::line::{Line, Style};
 use plotlib::page;
-use plotlib::scatter::Scatter;
 use plotlib::style::Line as OtherLine;
 
 use crate::config::{
@@ -57,12 +55,16 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
 
             // TODO: Color this output red/green for good/bad
             let diff_str = |lhs: f64, rhs: f64| {
+                use colored::*;
+
+                let abs_str = (lhs - rhs).abs().to_string();
+
                 if lhs > rhs {
-                    return "+".to_string() + &(lhs - rhs).abs().to_string();
+                    return ("+".to_string() + &abs_str).green();
                 } else if lhs < rhs {
-                    return "-".to_string() + &(lhs - rhs).abs().to_string();
+                    return ("-".to_string() + &abs_str).red();
                 } else {
-                    return "=".to_string();
+                    return "=".to_string().blue();
                 }
             };
 
