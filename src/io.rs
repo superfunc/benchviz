@@ -14,7 +14,7 @@ use crate::config::{
 };
 use crate::types::{BenchHeader, BenchRunResult, IndividualBenchInfo};
 
-pub fn open_svg(file: &str) {
+fn open_svg(file: &str) {
     if cfg!(windows) {
         process::Command::new("start").arg(&file).spawn().unwrap();
     } else if cfg!(unix) {
@@ -24,15 +24,68 @@ pub fn open_svg(file: &str) {
     }
 }
 
-pub fn print_banner() {
-    println!("--------------------------------------------------------");
+fn git_is_available() -> bool {
+    if let Ok(_) = process::Command::new("git").output() {
+        return true;
+    }
+
+    return false;
+}
+
+fn get_git_diff(source_root: &str, hash1: &str, hash2: &str) -> String {
+    if !git_is_available() {
+        return "".to_string();
+    }
+
+    match std::env::current_dir() {
+        Ok(curr) => {
+            std::env::set_current_dir(&source_root).unwrap();
+            let output = process::Command::new("git")
+                .arg("diff")
+                .arg(&hash1)
+                .arg(&hash2)
+                .output().unwrap();
+            let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
+            std::env::set_current_dir(&curr).unwrap();
+            raw.to_string()
+        },
+        _ => {
+            "".to_string()
+        }
+    }   
+}
+
+fn get_git_hash(source_root: &str) -> String {
+    if !git_is_available() {
+        return "".to_string();
+    }
+
+    match std::env::current_dir() {
+        Ok(curr) => {
+            std::env::set_current_dir(&source_root).unwrap();
+            let output = process::Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD").output().unwrap();
+            let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
+            std::env::set_current_dir(&curr).unwrap();
+            raw.trim().to_string()
+        },
+        _ => {
+            "".to_string()
+        }
+    }
+}
+
+fn print_banner() {
+    println!("-------------------------------------------------------------\
+              -------------------------");
 }
 
 pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
     print_banner();
     let benches = read_top_level_config();
     match benches.get(name) {
-        Some(_) => {
+        Some(header) => {
             let info = read_individual_config(name);
             let num_runs = info.commentary.len();
             if run_id_1 >= num_runs {
@@ -60,13 +113,16 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
                 let abs_str = (lhs - rhs).abs().to_string();
 
                 if lhs > rhs {
-                    return ("+".to_string() + &abs_str).green();
+                    return ("-".to_string() + &abs_str).green();
                 } else if lhs < rhs {
-                    return ("-".to_string() + &abs_str).red();
+                    return ("+".to_string() + &abs_str).red();
                 } else {
                     return "=".to_string().blue();
                 }
             };
+            
+            println!("Prelude: ");
+            print_banner();
 
             // TODO: Users could alter their benchmarks to be inconsistent
             // we should probably do something to handle this better.
@@ -75,7 +131,8 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
             println!("Run {} description: {}", run_id_1, info.commentary[run_id_1]);
             println!("Run {} description: {}", run_id_2, info.commentary[run_id_2]);
             print_banner();
-
+            println!("Time difference(s): ");
+            print_banner();
             for i in 0..bench_results_1.len() {
                 println!(
                     "{}: {}, {}{}{}: {}",
@@ -87,6 +144,13 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
                     diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
                 );
             }
+
+            print_banner();
+            println!("Source difference(s): ");
+            print_banner();
+            let hash1 = &info.source_hashes[run_id_1];
+            let hash2 = &info.source_hashes[run_id_2];
+            println!("{}", get_git_diff(&header.source_root, &hash1, &hash2));
         }
         None => println!("Name {:?} not found in benches.", name),
     }
@@ -99,8 +163,9 @@ pub fn print_current_benchmarks() {
     println!("{} benchmarks found: ", benches.len());
     for (id, info) in benches {
         println!(
-            "\nName: {:?}\nDescription: {:?}\nLocation: {:?}",
-            id, info.description, info.root
+            "\nName: {:?}\nDescription: {:?}\nSource Location: {:?}\
+             \nExecutable Location: {:?}",
+             id, info.description, info.source_root, info.source_bin
         );
         print_banner();
     }
@@ -114,7 +179,9 @@ pub fn print_individual_bench_info(name: &str) {
             let info = read_individual_config(name);
             println!("Description: {}", header.description);
             for i in 0..info.commentary.len() {
-                println!("Run #{}: {}", i, info.commentary[i]);
+                println!("Run #{} ({}): {}", i, 
+                         info.source_hashes[i].get(..8).unwrap(),
+                         info.commentary[i]);
             }
         }
         None => println!("Name {:?} not found in benches.", name),
@@ -165,6 +232,22 @@ pub fn plot_individual_benchmark(name: &str) {
     }
 }
 
+fn cache_individual_benchmark_source(name: &str) {
+    let benches = read_top_level_config();
+    match benches.get(name) {
+        Some(header) => {
+            // TODO: 
+            //let dir = get_individual_config_dir(name).join("src");
+            //if !dir.exists() {
+            //    std::fs::create_dir(dir);
+            //}
+
+            //std::fs::copy(header.root, dir);
+        }
+        None => println!("Name {:?} not found in benches.", name),
+    }
+}
+
 pub fn run_individual_benchmark(name: &str) {
     let desc: String = dialoguer::Input::new()
         .with_prompt("What has changed since the last run?")
@@ -173,10 +256,9 @@ pub fn run_individual_benchmark(name: &str) {
 
     let benches = read_top_level_config();
     match benches.get(name) {
-        Some(_) => {
+        Some(header) => {
             let mut info = read_individual_config(name);
-            // TODO: Fix this, still very fragile
-            let exe = info.context.as_ref().unwrap().executable.to_string();
+            let exe = &header.source_bin;
             let output = process::Command::new(&exe)
                 .arg("--benchmark_format=json")
                 .output()
@@ -186,6 +268,7 @@ pub fn run_individual_benchmark(name: &str) {
             let new_benches: BenchRunResult = serde_json::from_str(&raw).unwrap();
             info.benchmarks.push(new_benches.benchmarks);
             info.commentary.push(desc);
+            info.source_hashes.push(get_git_hash(&header.source_root));
             let path = get_individual_config_file(name);
             fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
         }
@@ -198,8 +281,12 @@ pub fn create_new_individual_benchmark() {
         .with_prompt("Enter a name for the benchmark")
         .interact()
         .unwrap();
-    let loc: String = dialoguer::Input::new()
-        .with_prompt("Enter a source location")
+    let src: String = dialoguer::Input::new()
+        .with_prompt("Enter a source directory location")
+        .interact()
+        .unwrap();
+    let bin: String = dialoguer::Input::new()
+        .with_prompt("Enter an executable path")
         .interact()
         .unwrap();
     let desc: String = dialoguer::Input::new()
@@ -221,6 +308,7 @@ pub fn create_new_individual_benchmark() {
                 context: None,
                 benchmarks: vec![],
                 commentary: vec![],
+                source_hashes: vec![],
             };
             fs::write(
                 &individual,
@@ -234,7 +322,8 @@ pub fn create_new_individual_benchmark() {
             benches.insert(
                 name.to_string(),
                 BenchHeader {
-                    root: loc.to_string(),
+                    source_root: src.to_string(),
+                    source_bin: bin.to_string(),
                     description: desc.to_string(),
                 },
             );
