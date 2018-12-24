@@ -5,9 +5,9 @@ use std::fs;
 use std::process;
 
 use plotlib::barchart::BarChart;
-use plotlib::scatter::Scatter;
 use plotlib::line::{Line, Style};
 use plotlib::page;
+use plotlib::scatter::Scatter;
 use plotlib::style::Line as OtherLine;
 
 use crate::config::{
@@ -37,14 +37,18 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
             let info = read_individual_config(name);
             let num_runs = info.commentary.len();
             if run_id_1 >= num_runs {
-                println!("Invalid run id specified ({}), only {} runs recorded",
-                         run_id_1, num_runs);
+                println!(
+                    "Invalid run id specified ({}), only {} runs recorded",
+                    run_id_1, num_runs
+                );
                 return;
             }
 
             if run_id_2 >= num_runs {
-                println!("Invalid run id specified ({}), only {} runs recorded",
-                         run_id_2, num_runs);
+                println!(
+                    "Invalid run id specified ({}), only {} runs recorded",
+                    run_id_2, num_runs
+                );
                 return;
             }
 
@@ -66,12 +70,13 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
             // we should probably do something to handle this better.
             // TODO: Check the actual time units as they may vary.
             for i in 0..num_runs {
-                println!("Name: {}, Real time (ns): {}",
-                         bench_results_1[i].name, 
-                         diff_str(bench_results_1[i].real_time, 
-                                  bench_results_2[i].real_time));
+                println!(
+                    "Name: {}, Real time (ns): {}",
+                    bench_results_1[i].name,
+                    diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
+                );
             }
-        },
+        }
         None => println!("Name {:?} not found in benches.", name),
     }
 }
@@ -110,10 +115,10 @@ pub fn plot_individual_benchmark(name: &str) {
     match benches.get(name) {
         Some(_) => {
             let info = read_individual_config(name);
-            let mut data: Vec<(f64, f64)> = vec!();
-            let mut lines: Vec<Line> = vec!();
+            let mut data: Vec<(f64, f64)> = vec![];
+            let mut lines: Vec<Line> = vec![];
             let mut v = plotlib::view::ContinuousView::new();
-            let colors = vec!("magenta", "pink", "teal", "turquoise");
+            let colors = vec!["magenta", "pink", "teal", "turquoise"];
             let mut start = 0;
             let mut color_index = 0;
 
@@ -125,11 +130,11 @@ pub fn plot_individual_benchmark(name: &str) {
                 }
 
                 lines.push(
-                    Line::new(&data[start..data.len()])
-                    .style(
+                    Line::new(&data[start..data.len()]).style(
                         Style::new()
                             .colour(colors[color_index % colors.len()])
-                            .width(4.2))
+                            .width(4.2),
+                    ),
                 );
 
                 start += i;
@@ -202,8 +207,8 @@ pub fn create_new_individual_benchmark() {
             fs::File::create(&individual).unwrap();
             let blank_individual_config = IndividualBenchInfo {
                 context: None,
-                benchmarks: vec!(),
-                commentary: vec!(),
+                benchmarks: vec![],
+                commentary: vec![],
             };
             fs::write(
                 &individual,
