@@ -29,6 +29,7 @@ pub fn print_banner() {
 }
 
 pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
+    print_banner();
     let benches = read_top_level_config();
     match benches.get(name) {
         Some(_) => {
@@ -53,10 +54,9 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
             let bench_results_1 = &info.benchmarks[run_id_1];
             let bench_results_2 = &info.benchmarks[run_id_2];
 
-            // TODO: Color this output red/green for good/bad
-            let diff_str = |lhs: f64, rhs: f64| {
-                use colored::*;
+            use colored::*;
 
+            let diff_str = |lhs: f64, rhs: f64| {
                 let abs_str = (lhs - rhs).abs().to_string();
 
                 if lhs > rhs {
@@ -70,17 +70,27 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
 
             // TODO: Users could alter their benchmarks to be inconsistent
             // we should probably do something to handle this better.
-            // TODO: Check the actual time units as they may vary.
-            for i in 0..num_runs {
+            println!("Comparing run {} and {} from {}", run_id_1, run_id_2,
+                     name); 
+            println!("Run {} description: {}", run_id_1, info.commentary[run_id_1]);
+            println!("Run {} description: {}", run_id_2, info.commentary[run_id_2]);
+            print_banner();
+
+            for i in 0..bench_results_1.len() {
                 println!(
-                    "Name: {}, Real time (ns): {}",
-                    bench_results_1[i].name,
+                    "{}: {}, {}{}{}: {}",
+                    "Name".white(),
+                    bench_results_1[i].name.italic(),
+                    "Time(".to_string(),
+                    bench_results_1[i].time_unit.cyan(),
+                    ")",
                     diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
                 );
             }
         }
         None => println!("Name {:?} not found in benches.", name),
     }
+    print_banner();
 }
 
 pub fn print_current_benchmarks() {
