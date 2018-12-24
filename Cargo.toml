@@ -1,9 +1,8 @@
 [package]
 name = "benchviz"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["superfunc <superfunc@users.noreply.github.com>"]
 edition = "2018"
-proc-macro = true
 
 [dependencies]
 serde = { version = "1.0.82", features = ['derive'] }
@@ -11,3 +10,7 @@ serde_json = "1.0"
 clap = "2.32.0"
 dialoguer = "0.3.0"
 dirs = "1.0.4"
+plotlib = { git = "https://github.com/superfunc/plotlib", branch="rust2018" }
+
+[badges]
+travis-ci = { repository = "superfunc/benchviz" }

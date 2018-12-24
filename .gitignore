@@ -3,3 +3,5 @@
 bb.json
 Cargo.lock
 /.vscode
+/.DS_Store
+*.svg

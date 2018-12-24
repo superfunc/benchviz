@@ -1,21 +1,32 @@
 // Module containing io functionality for printing info to users
 // in the CLI environment
 
+use std::fs;
+use std::process;
+
+use plotlib;
+use plotlib::line::{Line, Style};
+use plotlib::page;
+use plotlib::style::Line as OtherLine;
+
 use crate::config::{
     get_individual_config_file, get_top_level_config_file, read_individual_config,
     read_top_level_config,
 };
-use crate::types::{BenchHeader, IndividualBenchInfo, TopLevelBenchInfo};
+use crate::types::{BenchHeader, BenchRunResult, IndividualBenchInfo};
 
-use std::fs;
-use std::process;
+pub fn open_svg(file: &str) {
+    if cfg!(windows) {
+        process::Command::new("start").arg(&file).spawn().unwrap();
+    } else if cfg!(unix) {
+        process::Command::new("open").arg(&file).spawn().unwrap();
+    } else {
+        panic!("Running on an unsupported operating system, sorry!");
+    }
+}
 
 pub fn print_banner() {
     println!("--------------------------------------------------------");
-}
-
-pub fn print_user_error(msg: &str) {
-    println!("ERROR: {:}.\nSee usage with \"benchviz -h\"", msg);
 }
 
 pub fn print_current_benchmarks() {
@@ -34,29 +45,83 @@ pub fn print_current_benchmarks() {
 pub fn print_individual_bench_info(name: &str) {
     let benches = read_top_level_config();
     match benches.get(name) {
-        Some(header) => {
-            let info = read_individual_config(name, &header);
+        Some(_) => {
+            let info = read_individual_config(name);
             println!("# of runs: {:?}", info.benchmarks.len());
-            println!("{:?}", info.context);
+            println!("Run info: {:?}", info.benchmarks);
+            println!("Machine context: {:?}", info.context);
+            println!("Commentary {:?}", info.commentary);
+        }
+        None => println!("Name {:?} not found in benches.", name),
+    }
+}
+
+pub fn plot_individual_benchmark(name: &str) {
+    let benches = read_top_level_config();
+    match benches.get(name) {
+        Some(_) => {
+            let info = read_individual_config(name);
+            let mut data: Vec<(f64, f64)> = vec![];
+            let mut lines: Vec<Line> = vec![];
+            let mut v = plotlib::view::ContinuousView::new();
+            let colors = vec!["magenta", "pink", "teal", "turquoise"];
+            let mut start = 0;
+            let mut color_index = 0;
+
+            for run in info.benchmarks {
+                let mut i = 0;
+                for results in run {
+                    data.push((i as f64, results.real_time));
+                    i = i + 1;
+                }
+
+                lines.push(
+                    Line::new(&data[start..data.len()]).style(
+                        Style::new()
+                            .colour(colors[color_index % colors.len()])
+                            .width(4.2),
+                    ),
+                );
+
+                start += i;
+                color_index += 1;
+            }
+
+            for i in 0..lines.len() {
+                v = v.add(&lines[i]);
+            }
+
+            page::Page::single(&v).save("/tmp/test.svg").unwrap();
+            open_svg("/tmp/test.svg");
         }
         None => println!("Name {:?} not found in benches.", name),
     }
 }
 
 pub fn run_individual_benchmark(name: &str) {
+    let desc: String = dialoguer::Input::new()
+        .with_prompt("What has changed since the last run?")
+        .interact()
+        .unwrap();
+
     let benches = read_top_level_config();
     match benches.get(name) {
         Some(header) => {
-            let mut info = read_individual_config(name, &header);
-            let exe = info.context.as_ref().unwrap().executable.to_string();
+            let mut info = read_individual_config(name);
+            let exe = &header.root;
+            // TODO: Figure this out
+            // TODO: Context not initially set
+            // TODO: Context not set after
+            //let exe = info.context.as_ref().unwrap().executable.to_string();
             let output = process::Command::new(&exe)
                 .arg("--benchmark_format=json")
                 .output()
                 .unwrap();
 
             let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-            let mut new_benches: IndividualBenchInfo = serde_json::from_str(&raw).unwrap();
-            info.benchmarks.append(&mut new_benches.benchmarks);
+            let new_benches: BenchRunResult = serde_json::from_str(&raw).unwrap();
+            info.benchmarks.push(new_benches.benchmarks);
+            info.commentary.push(desc);
             let path = get_individual_config_file(name);
             fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
         }
@@ -80,7 +145,7 @@ pub fn create_new_individual_benchmark() {
 
     let mut benches = read_top_level_config();
     match benches.get(&name) {
-        Some(header) => {
+        Some(_) => {
             println!("Name {:?} already exists in benchmarks.", name);
         }
         None => {
@@ -91,6 +156,7 @@ pub fn create_new_individual_benchmark() {
             let blank_individual_config = IndividualBenchInfo {
                 context: None,
                 benchmarks: vec![],
+                commentary: vec![],
             };
             fs::write(
                 &individual,

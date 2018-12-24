@@ -1,7 +1,7 @@
 // Module containing config functionality, including fetching the
 // contents of the config file, as well as sub-config info.
 
-use crate::types::{BenchHeader, IndividualBenchInfo, TopLevelBenchInfo};
+use crate::types::{IndividualBenchInfo, TopLevelBenchInfo};
 
 #[macro_export]
 macro_rules! root_dir {
@@ -39,7 +39,7 @@ pub fn ensure_initialized() {
     {
         println!("Ok, exiting simulation.");
     } else {
-        std::fs::create_dir(dir);
+        std::fs::create_dir(dir).unwrap();
     }
 }
 
@@ -60,7 +60,7 @@ pub fn read_top_level_config() -> TopLevelBenchInfo {
     }
 }
 
-pub fn read_individual_config(name: &str, header: &BenchHeader) -> IndividualBenchInfo {
+pub fn read_individual_config(name: &str) -> IndividualBenchInfo {
     let config_file = get_individual_config_file(name);
     if config_file.is_file() {
         let raw_contents =

@@ -21,27 +21,36 @@ pub struct BenchResult {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct BenchContextInfo {
+pub struct CpuCacheInfo {
     pub level: i64,
     pub size: i64,
     pub num_sharing: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct BenchContext {
+pub struct EnvironmentInfo {
     pub date: String,
     pub executable: String,
     pub num_cpus: i64,
     pub mhz_per_cpu: i64,
     pub cpu_scaling_enabled: bool,
-    pub caches: Vec<BenchContextInfo>,
+    pub caches: Vec<CpuCacheInfo>,
     pub library_build_type: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct IndividualBenchInfo {
-    pub context: Option<BenchContext>,
+pub struct BenchRunResult {
+    pub context: Option<EnvironmentInfo>,
     pub benchmarks: Vec<BenchResult>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IndividualBenchInfo {
+    // TODO: Update context per machine, just in case :)
+    // TODO: Add git changes
+    pub context: Option<EnvironmentInfo>,
+    pub commentary: Vec<String>,
+    pub benchmarks: Vec<Vec<BenchResult>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

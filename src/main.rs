@@ -5,14 +5,17 @@ mod types;
 use clap::clap_app;
 
 fn main() {
-    let matches = clap_app!(myapp =>
+    let matches = clap_app!(benchviz =>
        (version: "1.0")
        (author: "superfunc <superfunc@users.noreply.github.com>")
-       (about: "A utility for managing Google benchmark.")
+       (about: "A utility for managing C++ benchmarks.")
        (@subcommand list =>
           (about: "List available benchmarks"))
        (@subcommand new =>
           (about: "Create a new benchmark"))
+       (@subcommand plot =>
+          (about: "Plot the existing runs of a benchmark.")
+          (@arg name: +required "Name of benchmark"))
        (@subcommand info =>
           (about: "Information on an individual benchmark")
           (@arg name: +required "Name of benchmark"))
@@ -31,5 +34,7 @@ fn main() {
         crate::io::print_individual_bench_info(v.value_of("name").unwrap());
     } else if let Some(v) = matches.subcommand_matches("run") {
         crate::io::run_individual_benchmark(v.value_of("name").unwrap());
+    } else if let Some(v) = matches.subcommand_matches("plot") {
+        crate::io::plot_individual_benchmark(v.value_of("name").unwrap());
     }
 }
