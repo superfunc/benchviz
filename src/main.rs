@@ -19,6 +19,11 @@ fn main() {
        (@subcommand info =>
           (about: "Information on an individual benchmark")
           (@arg name: +required "Name of benchmark"))
+       (@subcommand compare =>
+          (about: "Compare two runs from a benchmark")
+          (@arg name: +required "Name of benchmark")
+          (@arg run_id_1: +required "Index of the first run")
+          (@arg run_id_2: +required "Index of the second run"))
        (@subcommand run =>
           (about: "Run another iteration of a benchmark.")
           (@arg name: +required "Name of benchmark")))
@@ -36,5 +41,10 @@ fn main() {
         crate::io::run_individual_benchmark(v.value_of("name").unwrap());
     } else if let Some(v) = matches.subcommand_matches("plot") {
         crate::io::plot_individual_benchmark(v.value_of("name").unwrap());
+    } else if let Some(v) = matches.subcommand_matches("compare") {
+        let run_1 = v.value_of("run_id_1").unwrap().parse::<usize>().unwrap();
+        let run_2 = v.value_of("run_id_2").unwrap().parse::<usize>().unwrap();
+        let name = v.value_of("name").unwrap();
+        crate::io::print_comparison(name, run_1, run_2);
     }
 }

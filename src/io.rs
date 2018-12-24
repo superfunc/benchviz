@@ -4,7 +4,8 @@
 use std::fs;
 use std::process;
 
-use plotlib;
+use plotlib::barchart::BarChart;
+use plotlib::scatter::Scatter;
 use plotlib::line::{Line, Style};
 use plotlib::page;
 use plotlib::style::Line as OtherLine;
@@ -29,6 +30,52 @@ pub fn print_banner() {
     println!("--------------------------------------------------------");
 }
 
+pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
+    let benches = read_top_level_config();
+    match benches.get(name) {
+        Some(_) => {
+            let info = read_individual_config(name);
+            let num_runs = info.commentary.len();
+            if run_id_1 >= num_runs {
+                println!("Invalid run id specified ({}), only {} runs recorded",
+                         run_id_1, num_runs);
+                return;
+            }
+
+            if run_id_2 >= num_runs {
+                println!("Invalid run id specified ({}), only {} runs recorded",
+                         run_id_2, num_runs);
+                return;
+            }
+
+            let bench_results_1 = &info.benchmarks[run_id_1];
+            let bench_results_2 = &info.benchmarks[run_id_2];
+
+            // TODO: Color this output red/green for good/bad
+            let diff_str = |lhs: f64, rhs: f64| {
+                if lhs > rhs {
+                    return "+".to_string() + &(lhs - rhs).abs().to_string();
+                } else if lhs < rhs {
+                    return "-".to_string() + &(lhs - rhs).abs().to_string();
+                } else {
+                    return "=".to_string();
+                }
+            };
+
+            // TODO: Users could alter their benchmarks to be inconsistent
+            // we should probably do something to handle this better.
+            // TODO: Check the actual time units as they may vary.
+            for i in 0..num_runs {
+                println!("Name: {}, Real time (ns): {}",
+                         bench_results_1[i].name, 
+                         diff_str(bench_results_1[i].real_time, 
+                                  bench_results_2[i].real_time));
+            }
+        },
+        None => println!("Name {:?} not found in benches.", name),
+    }
+}
+
 pub fn print_current_benchmarks() {
     let benches = read_top_level_config();
     print_banner();
@@ -43,17 +90,19 @@ pub fn print_current_benchmarks() {
 }
 
 pub fn print_individual_bench_info(name: &str) {
+    print_banner();
     let benches = read_top_level_config();
     match benches.get(name) {
-        Some(_) => {
+        Some(header) => {
             let info = read_individual_config(name);
-            println!("# of runs: {:?}", info.benchmarks.len());
-            println!("Run info: {:?}", info.benchmarks);
-            println!("Machine context: {:?}", info.context);
-            println!("Commentary {:?}", info.commentary);
+            println!("Description: {}", header.description);
+            for i in 0..info.commentary.len() {
+                println!("Run #{}: {}", i, info.commentary[i]);
+            }
         }
         None => println!("Name {:?} not found in benches.", name),
     }
+    print_banner();
 }
 
 pub fn plot_individual_benchmark(name: &str) {
@@ -61,10 +110,10 @@ pub fn plot_individual_benchmark(name: &str) {
     match benches.get(name) {
         Some(_) => {
             let info = read_individual_config(name);
-            let mut data: Vec<(f64, f64)> = vec![];
-            let mut lines: Vec<Line> = vec![];
+            let mut data: Vec<(f64, f64)> = vec!();
+            let mut lines: Vec<Line> = vec!();
             let mut v = plotlib::view::ContinuousView::new();
-            let colors = vec!["magenta", "pink", "teal", "turquoise"];
+            let colors = vec!("magenta", "pink", "teal", "turquoise");
             let mut start = 0;
             let mut color_index = 0;
 
@@ -76,17 +125,18 @@ pub fn plot_individual_benchmark(name: &str) {
                 }
 
                 lines.push(
-                    Line::new(&data[start..data.len()]).style(
+                    Line::new(&data[start..data.len()])
+                    .style(
                         Style::new()
                             .colour(colors[color_index % colors.len()])
-                            .width(4.2),
-                    ),
+                            .width(4.2))
                 );
 
                 start += i;
                 color_index += 1;
             }
 
+            v = v.y_label("Time(ns)");
             for i in 0..lines.len() {
                 v = v.add(&lines[i]);
             }
@@ -106,13 +156,10 @@ pub fn run_individual_benchmark(name: &str) {
 
     let benches = read_top_level_config();
     match benches.get(name) {
-        Some(header) => {
+        Some(_) => {
             let mut info = read_individual_config(name);
-            let exe = &header.root;
-            // TODO: Figure this out
-            // TODO: Context not initially set
-            // TODO: Context not set after
-            //let exe = info.context.as_ref().unwrap().executable.to_string();
+            // TODO: Fix this, still very fragile
+            let exe = info.context.as_ref().unwrap().executable.to_string();
             let output = process::Command::new(&exe)
                 .arg("--benchmark_format=json")
                 .output()
@@ -155,8 +202,8 @@ pub fn create_new_individual_benchmark() {
             fs::File::create(&individual).unwrap();
             let blank_individual_config = IndividualBenchInfo {
                 context: None,
-                benchmarks: vec![],
-                commentary: vec![],
+                benchmarks: vec!(),
+                commentary: vec!(),
             };
             fs::write(
                 &individual,
