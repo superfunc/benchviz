@@ -1,10 +1,17 @@
-![build status](https://travis-ci.org/superfunc/benchviz.svg?branch=master)
 > WIP 
+![https://travis-ci.org/superfunc/benchviz.svg?branch=master](https://travis-ci.org/superfunc/benchviz.svg?branch=master)
+
+##### Description
 
 A tool for cataloging, annotating & plotting C++ benchmarks
 written with [google/benchmark](github.com/google/benchmark).
 
-Rundown:
+##### Dependencies
+This tool utilizes git to do diffing, if you don't have it installed
+that feature will be turned off. Every other dependency is installed through
+cargo.
+
+#### TODO
 - [x] Running benchmarks.
 - [x] Saving results to json.
 - [x] Reading config/results from json.
@@ -13,9 +20,8 @@ Rundown:
 - [x] Generating git diffs.
 - [ ] Ensure the binary is built with gbench?.
 - [ ] Add more error handling around erroneous output.
-- [ ] Clean up redundancy in io.rs around reading configs.
+- [x] Clean up redundancy in io.rs around reading configs.
 - [ ] Plotting.
     - [x] Add basic SVG generation for plotting.
-    - [-] Add CLI Plotting default.
     - [ ] Add legend explaining colors for SVG output.
     - [ ] Generating full markdown or html reports.
