@@ -64,3 +64,4 @@ pub struct BenchHeader {
 
 pub type BenchId = String;
 pub type TopLevelBenchInfo = HashMap<BenchId, BenchHeader>;
+

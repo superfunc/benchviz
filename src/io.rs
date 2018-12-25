@@ -42,6 +42,7 @@ fn get_git_diff(source_root: &str, hash1: &str, hash2: &str) -> String {
             std::env::set_current_dir(&source_root).unwrap();
             let output = process::Command::new("git")
                 .arg("diff")
+                .arg("--color=always")
                 .arg(&hash1)
                 .arg(&hash2)
                 .output()
@@ -152,7 +153,7 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
                 "{}: {}{}{}{}{}: {}",
                 "Name".white(),
                 bench_results_1[i].name.italic(),
-                " ".to_string().repeat(32-bench_results_1[i].name.len()),
+                " ".to_string().repeat(32 - bench_results_1[i].name.len()),
                 "Time Diff(".to_string(),
                 bench_results_1[i].time_unit.cyan(),
                 ")",
