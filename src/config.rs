@@ -34,7 +34,11 @@ pub fn ensure_initialized() {
         &dir.to_string_lossy()
     );
 
-    if !dialoguer::Confirmation::new().with_text(&config_msg).interact().is_ok() {
+    if !dialoguer::Confirmation::new()
+        .with_text(&config_msg)
+        .interact()
+        .is_ok()
+    {
         println!("Ok, exiting simulation.");
     } else if !std::fs::create_dir(dir).is_ok() {
         println!("Failed to create config directory");
@@ -79,7 +83,7 @@ pub fn read_individual_config(name: &str) -> IndividualBenchInfo {
 
     type ConfigParseResult = Result<IndividualBenchInfo, serde_json::Error>;
     let utf8_contents = String::from_utf8_lossy(&contents.unwrap()).to_string();
-    let benches : ConfigParseResult = serde_json::from_str(&utf8_contents);
+    let benches: ConfigParseResult = serde_json::from_str(&utf8_contents);
     if !benches.is_ok() {
         println!("Failed to parse json from config");
         std::process::exit(1);

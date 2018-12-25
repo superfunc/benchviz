@@ -8,12 +8,6 @@ use plotlib::line::{Line, Style};
 use plotlib::page;
 use plotlib::style::Line as OtherLine;
 
-use crate::config::{
-    get_individual_config_file, get_top_level_config_file, read_individual_config,
-    read_top_level_config,
-};
-use crate::types::{BenchHeader, BenchRunResult, IndividualBenchInfo};
-
 fn open_svg(file: &str) {
     if cfg!(windows) {
         process::Command::new("start").arg(&file).spawn().unwrap();
@@ -83,10 +77,10 @@ fn print_banner() {
     );
 }
 
-fn lookup_benchmark(name: &str) -> Option<(BenchHeader, IndividualBenchInfo)> {
-    let benches = read_top_level_config();
+fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
+    let benches = crate::config::read_top_level_config();
     match benches.get(name) {
-        Some(header) => Some((header.clone(), read_individual_config(name))),
+        Some(header) => Some((header.clone(), crate::config::read_individual_config(name))),
         None => {
             println!("Name {:?} not found in benches.", name);
             None
@@ -173,7 +167,7 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
 
 pub fn print_current_benchmarks() {
     print_banner();
-    let benches = read_top_level_config();
+    let benches = crate::config::read_top_level_config();
     for (id, info) in benches {
         println!(
             "\nName: {:?}\nDescription: {:?}\nSource Location: {:?}\
@@ -252,11 +246,11 @@ pub fn run_individual_benchmark(name: &str) {
             .unwrap();
 
         let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-        let new_benches: BenchRunResult = serde_json::from_str(&raw).unwrap();
+        let new_benches: crate::types::BenchRunResult = serde_json::from_str(&raw).unwrap();
         info.benchmarks.push(new_benches.benchmarks);
         info.commentary.push(desc);
         info.source_hashes.push(get_git_hash(&header.source_root));
-        let path = get_individual_config_file(name);
+        let path = crate::config::get_individual_config_file(name);
         fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
     }
 }
@@ -279,17 +273,17 @@ pub fn create_new_individual_benchmark() {
         .interact()
         .unwrap();
 
-    let mut benches = read_top_level_config();
+    let mut benches = crate::config::read_top_level_config();
     match benches.get(&name) {
         Some(_) => {
             println!("Name {:?} already exists in benchmarks.", name);
         }
         None => {
             // Author skeleton info.json file
-            let individual = get_individual_config_file(&name);
+            let individual = crate::config::get_individual_config_file(&name);
             fs::create_dir(individual.parent().unwrap()).unwrap();
             fs::File::create(&individual).unwrap();
-            let blank_individual_config = IndividualBenchInfo {
+            let blank_individual_config = crate::types::IndividualBenchInfo {
                 context: None,
                 benchmarks: vec![],
                 commentary: vec![],
@@ -302,11 +296,11 @@ pub fn create_new_individual_benchmark() {
             .unwrap();
 
             // Update top level json file
-            let top_level = get_top_level_config_file();
+            let top_level = crate::config::get_top_level_config_file();
 
             benches.insert(
                 name.to_string(),
-                BenchHeader {
+                crate::types::BenchHeader {
                     source_root: src.to_string(),
                     source_bin: bin.to_string(),
                     description: desc.to_string(),
