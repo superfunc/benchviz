@@ -1,3 +1,5 @@
+// Copyright 2018 superfunc, see license.txt for usage details.
+//
 // Module containing core types representing
 // - Info coming from google/benchmark (runs, machine info)
 // - Source diffs between changes

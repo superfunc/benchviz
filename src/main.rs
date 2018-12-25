@@ -1,3 +1,5 @@
+// Copyright 2018 superfunc, see license.txt for usage details.
+
 mod config;
 mod io;
 mod types;
