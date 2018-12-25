@@ -44,15 +44,14 @@ fn get_git_diff(source_root: &str, hash1: &str, hash2: &str) -> String {
                 .arg("diff")
                 .arg(&hash1)
                 .arg(&hash2)
-                .output().unwrap();
+                .output()
+                .unwrap();
             let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
             std::env::set_current_dir(&curr).unwrap();
             raw.to_string()
-        },
-        _ => {
-            "".to_string()
         }
-    }   
+        _ => "".to_string(),
+    }
 }
 
 fn get_git_hash(source_root: &str) -> String {
@@ -65,107 +64,120 @@ fn get_git_hash(source_root: &str) -> String {
             std::env::set_current_dir(&source_root).unwrap();
             let output = process::Command::new("git")
                 .arg("rev-parse")
-                .arg("HEAD").output().unwrap();
+                .arg("HEAD")
+                .output()
+                .unwrap();
             let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
             std::env::set_current_dir(&curr).unwrap();
             raw.trim().to_string()
-        },
-        _ => {
-            "".to_string()
         }
+        _ => "".to_string(),
     }
 }
 
 fn print_banner() {
-    println!("-------------------------------------------------------------\
-              -------------------------");
+    println!(
+        "-------------------------------------------------------------\
+         -------------------------"
+    );
+}
+
+fn lookup_benchmark(name: &str) -> Option<(BenchHeader, IndividualBenchInfo)> {
+    let benches = read_top_level_config();
+    match benches.get(name) {
+        Some(header) => Some((header.clone(), read_individual_config(name))),
+        None => {
+            println!("Name {:?} not found in benches.", name);
+            None
+        }
+    }
 }
 
 pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
     print_banner();
-    let benches = read_top_level_config();
-    match benches.get(name) {
-        Some(header) => {
-            let info = read_individual_config(name);
-            let num_runs = info.commentary.len();
-            if run_id_1 >= num_runs {
-                println!(
-                    "Invalid run id specified ({}), only {} runs recorded",
-                    run_id_1, num_runs
-                );
-                return;
-            }
-
-            if run_id_2 >= num_runs {
-                println!(
-                    "Invalid run id specified ({}), only {} runs recorded",
-                    run_id_2, num_runs
-                );
-                return;
-            }
-
-            let bench_results_1 = &info.benchmarks[run_id_1];
-            let bench_results_2 = &info.benchmarks[run_id_2];
-
-            use colored::*;
-
-            let diff_str = |lhs: f64, rhs: f64| {
-                let abs_str = (lhs - rhs).abs().to_string();
-
-                if lhs > rhs {
-                    return ("-".to_string() + &abs_str).green();
-                } else if lhs < rhs {
-                    return ("+".to_string() + &abs_str).red();
-                } else {
-                    return "=".to_string().blue();
-                }
-            };
-            
-            println!("Prelude: ");
-            print_banner();
-
-            // TODO: Users could alter their benchmarks to be inconsistent
-            // we should probably do something to handle this better.
-            println!("Comparing run {} and {} from {}", run_id_1, run_id_2,
-                     name); 
-            println!("Run {} description: {}", run_id_1, info.commentary[run_id_1]);
-            println!("Run {} description: {}", run_id_2, info.commentary[run_id_2]);
-            print_banner();
-            println!("Time difference(s): ");
-            print_banner();
-            for i in 0..bench_results_1.len() {
-                println!(
-                    "{}: {}, {}{}{}: {}",
-                    "Name".white(),
-                    bench_results_1[i].name.italic(),
-                    "Time(".to_string(),
-                    bench_results_1[i].time_unit.cyan(),
-                    ")",
-                    diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
-                );
-            }
-
-            print_banner();
-            println!("Source difference(s): ");
-            print_banner();
-            let hash1 = &info.source_hashes[run_id_1];
-            let hash2 = &info.source_hashes[run_id_2];
-            println!("{}", get_git_diff(&header.source_root, &hash1, &hash2));
+    if let Some((header, info)) = lookup_benchmark(name) {
+        let num_runs = info.commentary.len();
+        if run_id_1 >= num_runs {
+            println!(
+                "Invalid run id specified ({}), only {} runs recorded",
+                run_id_1, num_runs
+            );
+            return;
         }
-        None => println!("Name {:?} not found in benches.", name),
+
+        if run_id_2 >= num_runs {
+            println!(
+                "Invalid run id specified ({}), only {} runs recorded",
+                run_id_2, num_runs
+            );
+            return;
+        }
+
+        let bench_results_1 = &info.benchmarks[run_id_1];
+        let bench_results_2 = &info.benchmarks[run_id_2];
+
+        use colored::*;
+
+        let diff_str = |lhs: f64, rhs: f64| {
+            let abs_str = (lhs - rhs).abs().to_string();
+
+            if lhs > rhs {
+                return ("-".to_string() + &abs_str).green();
+            } else if lhs < rhs {
+                return ("+".to_string() + &abs_str).red();
+            } else {
+                return "0".to_string().blue();
+            }
+        };
+
+        println!("Prelude: ");
+        print_banner();
+
+        // TODO: Users could alter their benchmarks to be inconsistent
+        // we should probably do something to handle this better.
+        println!("Comparing run {} and {} from {}", run_id_1, run_id_2, name);
+        println!(
+            "Run {} description: {}",
+            run_id_1, info.commentary[run_id_1]
+        );
+        println!(
+            "Run {} description: {}",
+            run_id_2, info.commentary[run_id_2]
+        );
+        print_banner();
+        println!("Time difference(s): ");
+        print_banner();
+        for i in 0..bench_results_1.len() {
+            println!(
+                "{}: {}{}{}{}{}: {}",
+                "Name".white(),
+                bench_results_1[i].name.italic(),
+                " ".to_string().repeat(32-bench_results_1[i].name.len()),
+                "Time Diff(".to_string(),
+                bench_results_1[i].time_unit.cyan(),
+                ")",
+                diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
+            );
+        }
+
+        print_banner();
+        println!("Source difference(s): ");
+        print_banner();
+        let hash1 = &info.source_hashes[run_id_1];
+        let hash2 = &info.source_hashes[run_id_2];
+        println!("{}", get_git_diff(&header.source_root, &hash1, &hash2));
     }
     print_banner();
 }
 
 pub fn print_current_benchmarks() {
-    let benches = read_top_level_config();
     print_banner();
-    println!("{} benchmarks found: ", benches.len());
+    let benches = read_top_level_config();
     for (id, info) in benches {
         println!(
             "\nName: {:?}\nDescription: {:?}\nSource Location: {:?}\
              \nExecutable Location: {:?}",
-             id, info.description, info.source_root, info.source_bin
+            id, info.description, info.source_root, info.source_bin
         );
         print_banner();
     }
@@ -173,78 +185,55 @@ pub fn print_current_benchmarks() {
 
 pub fn print_individual_bench_info(name: &str) {
     print_banner();
-    let benches = read_top_level_config();
-    match benches.get(name) {
-        Some(header) => {
-            let info = read_individual_config(name);
-            println!("Description: {}", header.description);
-            for i in 0..info.commentary.len() {
-                println!("Run #{} ({}): {}", i, 
-                         info.source_hashes[i].get(..8).unwrap(),
-                         info.commentary[i]);
-            }
+    if let Some((header, info)) = lookup_benchmark(name) {
+        println!("Description: {}", header.description);
+        for i in 0..info.commentary.len() {
+            println!(
+                "Run #{} ({}): {}",
+                i,
+                info.source_hashes[i].get(..8).unwrap(),
+                info.commentary[i]
+            );
         }
-        None => println!("Name {:?} not found in benches.", name),
     }
     print_banner();
 }
 
 pub fn plot_individual_benchmark(name: &str) {
-    let benches = read_top_level_config();
-    match benches.get(name) {
-        Some(_) => {
-            let info = read_individual_config(name);
-            let mut data: Vec<(f64, f64)> = vec![];
-            let mut lines: Vec<Line> = vec![];
-            let mut v = plotlib::view::ContinuousView::new();
-            let colors = vec!["magenta", "pink", "teal", "turquoise"];
-            let mut start = 0;
-            let mut color_index = 0;
+    if let Some((_, info)) = lookup_benchmark(name) {
+        let mut data: Vec<(f64, f64)> = vec![];
+        let mut lines: Vec<Line> = vec![];
+        let mut v = plotlib::view::ContinuousView::new();
+        let colors = vec!["magenta", "pink", "teal", "turquoise"];
+        let mut start = 0;
+        let mut color_index = 0;
 
-            for run in info.benchmarks {
-                let mut i = 0;
-                for results in run {
-                    data.push((i as f64, results.real_time));
-                    i = i + 1;
-                }
-
-                lines.push(
-                    Line::new(&data[start..data.len()]).style(
-                        Style::new()
-                            .colour(colors[color_index % colors.len()])
-                            .width(4.2),
-                    ),
-                );
-
-                start += i;
-                color_index += 1;
+        for run in info.benchmarks {
+            let mut i = 0;
+            for results in run {
+                data.push((i as f64, results.real_time));
+                i = i + 1;
             }
 
-            v = v.y_label("Time(ns)");
-            for i in 0..lines.len() {
-                v = v.add(&lines[i]);
-            }
+            lines.push(
+                Line::new(&data[start..data.len()]).style(
+                    Style::new()
+                        .colour(colors[color_index % colors.len()])
+                        .width(4.2),
+                ),
+            );
 
-            page::Page::single(&v).save("/tmp/test.svg").unwrap();
-            open_svg("/tmp/test.svg");
+            start += i;
+            color_index += 1;
         }
-        None => println!("Name {:?} not found in benches.", name),
-    }
-}
 
-fn cache_individual_benchmark_source(name: &str) {
-    let benches = read_top_level_config();
-    match benches.get(name) {
-        Some(header) => {
-            // TODO: 
-            //let dir = get_individual_config_dir(name).join("src");
-            //if !dir.exists() {
-            //    std::fs::create_dir(dir);
-            //}
-
-            //std::fs::copy(header.root, dir);
+        v = v.y_label("Time(ns)");
+        for i in 0..lines.len() {
+            v = v.add(&lines[i]);
         }
-        None => println!("Name {:?} not found in benches.", name),
+
+        page::Page::single(&v).save("/tmp/test.svg").unwrap();
+        open_svg("/tmp/test.svg");
     }
 }
 
@@ -254,25 +243,20 @@ pub fn run_individual_benchmark(name: &str) {
         .interact()
         .unwrap();
 
-    let benches = read_top_level_config();
-    match benches.get(name) {
-        Some(header) => {
-            let mut info = read_individual_config(name);
-            let exe = &header.source_bin;
-            let output = process::Command::new(&exe)
-                .arg("--benchmark_format=json")
-                .output()
-                .unwrap();
+    if let Some((header, mut info)) = lookup_benchmark(name) {
+        let exe = &header.source_bin;
+        let output = process::Command::new(&exe)
+            .arg("--benchmark_format=json")
+            .output()
+            .unwrap();
 
-            let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-            let new_benches: BenchRunResult = serde_json::from_str(&raw).unwrap();
-            info.benchmarks.push(new_benches.benchmarks);
-            info.commentary.push(desc);
-            info.source_hashes.push(get_git_hash(&header.source_root));
-            let path = get_individual_config_file(name);
-            fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
-        }
-        None => println!("Name {:?} not found in benches.", name),
+        let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
+        let new_benches: BenchRunResult = serde_json::from_str(&raw).unwrap();
+        info.benchmarks.push(new_benches.benchmarks);
+        info.commentary.push(desc);
+        info.source_hashes.push(get_git_hash(&header.source_root));
+        let path = get_individual_config_file(name);
+        fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
     }
 }
 

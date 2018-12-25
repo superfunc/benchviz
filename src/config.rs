@@ -18,10 +18,6 @@ pub fn get_individual_config_file(name: &str) -> std::path::PathBuf {
     root_dir!().join(name.to_string()).join("info.json")
 }
 
-pub fn get_individual_config_dir(name: &str) -> std::path::PathBuf {
-    root_dir!().join(name.to_string())
-}
-
 pub fn get_top_level_config_file() -> std::path::PathBuf {
     root_dir!().join("top.json")
 }

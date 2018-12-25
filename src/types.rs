@@ -51,10 +51,10 @@ pub struct IndividualBenchInfo {
     pub context: Option<EnvironmentInfo>,
     pub commentary: Vec<String>,
     pub benchmarks: Vec<Vec<BenchResult>>,
-    pub source_hashes: Vec<String>
+    pub source_hashes: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BenchHeader {
     // TODO: Make this a Path, not a string
     pub source_root: String,
