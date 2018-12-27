@@ -64,6 +64,11 @@ pub struct BenchHeader {
     pub description: String,
 }
 
+pub enum BenchmarkRunId {
+    Index(usize),
+    All,
+}
+
 pub type BenchId = String;
 pub type TopLevelBenchInfo = HashMap<BenchId, BenchHeader>;
 pub type BenchmarkQuery = Option<(BenchHeader, IndividualBenchInfo)>;

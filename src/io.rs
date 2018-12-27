@@ -90,6 +90,65 @@ fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
     }
 }
 
+fn prompt_benchmark_name() -> String {
+    loop {
+        let name: String = dialoguer::Input::new()
+            .with_prompt("Which benchmark would you like to remove?")
+            .interact()
+            .unwrap();
+
+        if let Some((_, _)) = lookup_benchmark(&name) {
+            return name;
+        }
+    }
+}
+
+fn prompt_run_id(name: &str) -> crate::types::BenchmarkRunId {
+    let info = crate::config::read_individual_config(&name);
+
+    loop {
+        let num_runs = info.benchmarks.len();
+        let prompt = format!(
+            "{} has {} runs, which would \
+             you like to remove? (Enter * for all)",
+            &name, num_runs
+        );
+        let run_id: String = dialoguer::Input::new()
+            .with_prompt(&prompt)
+            .interact()
+            .unwrap();
+
+        if run_id == "*" {
+            return crate::types::BenchmarkRunId::All;
+        } else {
+            match run_id.parse::<usize>() {
+                Ok(val) => {
+                    let len_benches = info.benchmarks.len();
+                    let len_comments = info.commentary.len();
+                    let len_hashes = info.commentary.len();
+
+                    if len_benches != len_comments || len_comments != len_hashes {
+                        println!(
+                            "Benchmarks file in inconsistent state, perhaps it was hand edited?"
+                        );
+                        std::process::exit(1);
+                    }
+
+                    if val >= len_benches {
+                        println!("Invalid run id specified, try again");
+                    }
+
+                    return crate::types::BenchmarkRunId::Index(val);
+                }
+                Err(_) => {
+                    println!("Unparseable unsigned supplied, try again.");
+                    continue;
+                }
+            }
+        }
+    }
+}
+
 pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
     print_banner();
     if let Some((header, info)) = lookup_benchmark(name) {
@@ -321,74 +380,32 @@ pub fn remove_benchmark_run() {
         println!("\n{}: {}", name, header.description);
     }
 
-    'namePromptLoop: loop {
-        let name: String = dialoguer::Input::new()
-            .with_prompt("Which benchmark would you like to remove?")
-            .interact()
-            .unwrap();
+    let name = prompt_benchmark_name();
+    let mut info = crate::config::read_individual_config(&name);
+    match prompt_run_id(&name) {
+        crate::types::BenchmarkRunId::All => {
+            info.benchmarks.clear();
+            info.commentary.clear();
+            info.source_hashes.clear();
+        }
+        crate::types::BenchmarkRunId::Index(val) => {
+            info.benchmarks.remove(val);
+            info.commentary.remove(val);
+            info.source_hashes.remove(val);
+        }
+    }
 
-        if let Some((_, mut info)) = lookup_benchmark(&name) {
-            'runIdPromptLoop: loop {
-                let num_runs = info.benchmarks.len();
-                let prompt = format!(
-                    "{} has {} runs, which would \
-                     you like to remove? (Enter * for all)",
-                    &name, num_runs
-                );
-                let run_id: String = dialoguer::Input::new()
-                    .with_prompt(&prompt)
-                    .interact()
-                    .unwrap();
-
-                if run_id == "*" {
-                    info.benchmarks.clear();
-                    info.commentary.clear();
-                    info.source_hashes.clear();
-                    break 'runIdPromptLoop;
-                } else {
-                    match run_id.parse::<usize>() {
-                        Ok(val) => {
-                            let len_benches = info.benchmarks.len();
-                            let len_comments = info.commentary.len();
-                            let len_hashes = info.commentary.len();
-
-                            if len_benches != len_comments || len_comments != len_hashes {
-                                println!("Benchmarks file in inconsistent state, perhaps it was hand edited?");
-                                std::process::exit(1);
-                            }
-
-                            if val >= len_benches {
-                                println!("Invalid run id specified, try again");
-                            }
-
-                            info.benchmarks.remove(val);
-                            info.commentary.remove(val);
-                            info.source_hashes.remove(val);
-                            break 'runIdPromptLoop;
-                        }
-                        Err(_) => {
-                            println!("Unparseable unsigned supplied, try again.");
-                            continue 'runIdPromptLoop;
-                        }
-                    }
-                }
+    let path = crate::config::get_individual_config_file(&name);
+    match serde_json::to_string_pretty(&info) {
+        Ok(content) => match fs::write(&path, &content) {
+            Ok(_) => {}
+            Err(_) => {
+                println!("Failed to write results to config file.");
             }
-
-            let path = crate::config::get_individual_config_file(&name);
-            match serde_json::to_string_pretty(&info) {
-                Ok(content) => match fs::write(&path, &content) {
-                    Ok(_) => {
-                        break 'namePromptLoop;
-                    }
-                    Err(_) => {
-                        println!("Failed to write results to config file.");
-                    }
-                },
-                Err(_) => {
-                    println!("Failed to write results back to json.");
-                    std::process::exit(1);
-                }
-            }
+        },
+        Err(_) => {
+            println!("Failed to write results back to json.");
+            std::process::exit(1);
         }
     }
 
