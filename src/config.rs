@@ -16,9 +16,7 @@ pub fn get_config_root_dir() -> std::path::PathBuf {
 }
 
 pub fn get_individual_config_file(name: &str) -> std::path::PathBuf {
-    get_config_root_dir()
-        .join(name.to_string())
-        .join("info.json")
+    get_config_root_dir().join(name.to_string()).join("info.json")
 }
 
 pub fn get_top_level_config_file() -> std::path::PathBuf {
@@ -31,16 +29,9 @@ pub fn ensure_initialized() {
         return;
     }
 
-    let config_msg = format!(
-        "There is no config directory for bb, can I create one at {}?",
-        &dir.to_string_lossy()
-    );
+    let config_msg = format!("There is no config directory for bb, can I create one at {}?", &dir.to_string_lossy());
 
-    if !dialoguer::Confirmation::new()
-        .with_text(&config_msg)
-        .interact()
-        .is_ok()
-    {
+    if !dialoguer::Confirmation::new().with_text(&config_msg).interact().is_ok() {
         println!("Ok, exiting simulation.");
     } else if !std::fs::create_dir(dir).is_ok() {
         println!("Failed to create config directory");

@@ -36,18 +36,12 @@ fn get_git_diff(source_root: &str, hash1: &str, hash2: &str) -> String {
     match std::env::current_dir() {
         Ok(curr) => {
             std::env::set_current_dir(&source_root).unwrap();
-            let output = process::Command::new("git")
-                .arg("diff")
-                .arg("--color=always")
-                .arg(&hash1)
-                .arg(&hash2)
-                .output()
-                .unwrap();
+            let output = process::Command::new("git").arg("diff").arg("--color=always").arg(&hash1).arg(&hash2).output().unwrap();
             let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
             std::env::set_current_dir(&curr).unwrap();
             raw.to_string()
         }
-        _ => "".to_string(),
+        _ => "".to_string()
     }
 }
 
@@ -59,24 +53,13 @@ fn get_git_hash(source_root: &str) -> String {
     match std::env::current_dir() {
         Ok(curr) => {
             std::env::set_current_dir(&source_root).unwrap();
-            let output = process::Command::new("git")
-                .arg("rev-parse")
-                .arg("HEAD")
-                .output()
-                .unwrap();
+            let output = process::Command::new("git").arg("rev-parse").arg("HEAD").output().unwrap();
             let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
             std::env::set_current_dir(&curr).unwrap();
             raw.trim().to_string()
         }
-        _ => "".to_string(),
+        _ => "".to_string()
     }
-}
-
-fn print_banner() {
-    println!(
-        "-------------------------------------------------------------\
-         -------------------------"
-    );
 }
 
 fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
@@ -90,12 +73,41 @@ fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
     }
 }
 
+pub fn parse_run_id(name: &str, run_id: &str) -> Option<crate::types::BenchmarkRunId> {
+    let info = crate::config::read_individual_config(&name);
+
+    if run_id == "*" {
+        return Some(crate::types::BenchmarkRunId::All);
+    } else {
+        match run_id.parse::<usize>() {
+            Ok(val) => {
+                let len_benches = info.benchmarks.len();
+                let len_comments = info.commentary.len();
+                let len_hashes = info.commentary.len();
+
+                if len_benches != len_comments || len_comments != len_hashes {
+                    println!("Benchmarks file in inconsistent state, perhaps it was hand edited?");
+                    std::process::exit(1);
+                }
+
+                if val >= len_benches {
+                    println!("Invalid run id specified, try again");
+                }
+
+                return Some(crate::types::BenchmarkRunId::Index(val));
+            }
+            Err(_) => {
+                println!("Unparseable unsigned supplied, try again.");
+            }
+        }
+    }
+
+    return None;
+}
+
 fn prompt_benchmark_name() -> String {
     loop {
-        let name: String = dialoguer::Input::new()
-            .with_prompt("Which benchmark would you like to remove?")
-            .interact()
-            .unwrap();
+        let name: String = dialoguer::Input::new().with_prompt("Which benchmark would you like to remove?").interact().unwrap();
 
         if let Some((_, _)) = lookup_benchmark(&name) {
             return name;
@@ -113,59 +125,28 @@ fn prompt_run_id(name: &str) -> crate::types::BenchmarkRunId {
              you like to remove? (Enter * for all)",
             &name, num_runs
         );
-        let run_id: String = dialoguer::Input::new()
-            .with_prompt(&prompt)
-            .interact()
-            .unwrap();
+        for i in 0..num_runs {
+            println!(" > Run #{}: {}", i, info.commentary[i]);
+        }
 
-        if run_id == "*" {
-            return crate::types::BenchmarkRunId::All;
-        } else {
-            match run_id.parse::<usize>() {
-                Ok(val) => {
-                    let len_benches = info.benchmarks.len();
-                    let len_comments = info.commentary.len();
-                    let len_hashes = info.commentary.len();
+        let run_id: String = dialoguer::Input::new().with_prompt(&prompt).interact().unwrap();
 
-                    if len_benches != len_comments || len_comments != len_hashes {
-                        println!(
-                            "Benchmarks file in inconsistent state, perhaps it was hand edited?"
-                        );
-                        std::process::exit(1);
-                    }
-
-                    if val >= len_benches {
-                        println!("Invalid run id specified, try again");
-                    }
-
-                    return crate::types::BenchmarkRunId::Index(val);
-                }
-                Err(_) => {
-                    println!("Unparseable unsigned supplied, try again.");
-                    continue;
-                }
-            }
+        if let Some(parsed_run_id) = parse_run_id(&name, &run_id) {
+            return parsed_run_id;
         }
     }
 }
 
 pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
-    print_banner();
     if let Some((header, info)) = lookup_benchmark(name) {
         let num_runs = info.commentary.len();
         if run_id_1 >= num_runs {
-            println!(
-                "Invalid run id specified ({}), only {} runs recorded",
-                run_id_1, num_runs
-            );
+            println!("Invalid run id specified ({}), only {} runs recorded", run_id_1, num_runs);
             return;
         }
 
         if run_id_2 >= num_runs {
-            println!(
-                "Invalid run id specified ({}), only {} runs recorded",
-                run_id_2, num_runs
-            );
+            println!("Invalid run id specified ({}), only {} runs recorded", run_id_2, num_runs);
             return;
         }
 
@@ -187,22 +168,13 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
         };
 
         println!("Prelude: ");
-        print_banner();
 
         // TODO: Users could alter their benchmarks to be inconsistent
         // we should probably do something to handle this better.
         println!("Comparing run {} and {} from {}", run_id_1, run_id_2, name);
-        println!(
-            "Run {} description: {}",
-            run_id_1, info.commentary[run_id_1]
-        );
-        println!(
-            "Run {} description: {}",
-            run_id_2, info.commentary[run_id_2]
-        );
-        print_banner();
+        println!("Run {} description: {}", run_id_1, info.commentary[run_id_1]);
+        println!("Run {} description: {}", run_id_2, info.commentary[run_id_2]);
         println!("Time difference(s): ");
-        print_banner();
         for i in 0..bench_results_1.len() {
             println!(
                 "{}: {}{}{}{}{}: {}",
@@ -216,18 +188,14 @@ pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
             );
         }
 
-        print_banner();
         println!("Source difference(s): ");
-        print_banner();
         let hash1 = &info.source_hashes[run_id_1];
         let hash2 = &info.source_hashes[run_id_2];
         println!("{}", get_git_diff(&header.source_root, &hash1, &hash2));
     }
-    print_banner();
 }
 
 pub fn print_current_benchmarks() {
-    print_banner();
     let benches = crate::config::read_top_level_config();
     for (id, info) in benches {
         println!(
@@ -235,24 +203,19 @@ pub fn print_current_benchmarks() {
              \nExecutable Location: {:?}",
             id, info.description, info.source_root, info.source_bin
         );
-        print_banner();
     }
 }
 
 pub fn print_individual_bench_info(name: &str) {
-    print_banner();
     if let Some((header, info)) = lookup_benchmark(name) {
         println!("Description: {}", header.description);
+        println!("Source Location: {}", header.source_root);
+        println!("Executable Location: {}", header.source_bin);
+        println!("Previous run information: ");
         for i in 0..info.commentary.len() {
-            println!(
-                "Run #{} ({}): {}",
-                i,
-                info.source_hashes[i].get(..8).unwrap(),
-                info.commentary[i]
-            );
+            println!(" > Run #{} ({}): {}", i, info.source_hashes[i].get(..8).unwrap(), info.commentary[i]);
         }
     }
-    print_banner();
 }
 
 pub fn plot_individual_benchmark(name: &str) {
@@ -272,11 +235,7 @@ pub fn plot_individual_benchmark(name: &str) {
             }
 
             lines.push(
-                Line::new(&data[start..data.len()]).style(
-                    Style::new()
-                        .colour(colors[color_index % colors.len()])
-                        .width(4.2),
-                ),
+                Line::new(&data[start..data.len()]).style(Style::new().colour(colors[color_index % colors.len()]).width(4.2))
             );
 
             start += i;
@@ -294,17 +253,11 @@ pub fn plot_individual_benchmark(name: &str) {
 }
 
 pub fn run_individual_benchmark(name: &str) {
-    let desc: String = dialoguer::Input::new()
-        .with_prompt("What has changed since the last run?")
-        .interact()
-        .unwrap();
+    let desc: String = dialoguer::Input::new().with_prompt("What has changed since the last run?").interact().unwrap();
 
     if let Some((header, mut info)) = lookup_benchmark(name) {
         let exe = &header.source_bin;
-        let output = process::Command::new(&exe)
-            .arg("--benchmark_format=json")
-            .output()
-            .unwrap();
+        let output = process::Command::new(&exe).arg("--benchmark_format=json").output().unwrap();
 
         let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
         let new_benches: crate::types::BenchRunResult = serde_json::from_str(&raw).unwrap();
@@ -317,22 +270,10 @@ pub fn run_individual_benchmark(name: &str) {
 }
 
 pub fn create_new_individual_benchmark() {
-    let name: String = dialoguer::Input::new()
-        .with_prompt("Enter a name for the benchmark")
-        .interact()
-        .unwrap();
-    let src: String = dialoguer::Input::new()
-        .with_prompt("Enter a source directory location")
-        .interact()
-        .unwrap();
-    let bin: String = dialoguer::Input::new()
-        .with_prompt("Enter an executable path")
-        .interact()
-        .unwrap();
-    let desc: String = dialoguer::Input::new()
-        .with_prompt("Describe this benchmark")
-        .interact()
-        .unwrap();
+    let name: String = dialoguer::Input::new().with_prompt("Enter a name for the benchmark").interact().unwrap();
+    let src: String = dialoguer::Input::new().with_prompt("Enter a source directory location").interact().unwrap();
+    let bin: String = dialoguer::Input::new().with_prompt("Enter an executable path").interact().unwrap();
+    let desc: String = dialoguer::Input::new().with_prompt("Describe this benchmark").interact().unwrap();
 
     let mut benches = crate::config::read_top_level_config();
     match benches.get(&name) {
@@ -345,16 +286,12 @@ pub fn create_new_individual_benchmark() {
             fs::create_dir(individual.parent().unwrap()).unwrap();
             fs::File::create(&individual).unwrap();
             let blank_individual_config = crate::types::IndividualBenchInfo {
-                context: None,
-                benchmarks: vec![],
-                commentary: vec![],
-                source_hashes: vec![],
+                context:       None,
+                benchmarks:    vec![],
+                commentary:    vec![],
+                source_hashes: vec![]
             };
-            fs::write(
-                &individual,
-                serde_json::to_string_pretty(&blank_individual_config).unwrap(),
-            )
-            .unwrap();
+            fs::write(&individual, serde_json::to_string_pretty(&blank_individual_config).unwrap()).unwrap();
 
             // Update top level json file
             let top_level = crate::config::get_top_level_config_file();
@@ -363,26 +300,18 @@ pub fn create_new_individual_benchmark() {
                 name.to_string(),
                 crate::types::BenchHeader {
                     source_root: src.to_string(),
-                    source_bin: bin.to_string(),
-                    description: desc.to_string(),
-                },
+                    source_bin:  bin.to_string(),
+                    description: desc.to_string()
+                }
             );
             fs::write(&top_level, serde_json::to_string_pretty(&benches).unwrap()).unwrap();
         }
     }
 }
 
-pub fn remove_benchmark_run() {
-    print_banner();
-    println!("Current benchmarks (run info command for more info): ");
-    let benches = crate::config::read_top_level_config();
-    for (name, header) in benches {
-        println!("\n{}: {}", name, header.description);
-    }
-
-    let name = prompt_benchmark_name();
+pub fn remove_benchmark_run(name: &str, run_id: crate::types::BenchmarkRunId) {
     let mut info = crate::config::read_individual_config(&name);
-    match prompt_run_id(&name) {
+    match run_id {
         crate::types::BenchmarkRunId::All => {
             info.benchmarks.clear();
             info.commentary.clear();
@@ -408,6 +337,16 @@ pub fn remove_benchmark_run() {
             std::process::exit(1);
         }
     }
+}
 
-    print_banner();
+pub fn remove_benchmark_run_with_prompt() {
+    println!("Current benchmarks (run info command for more info): ");
+    let benches = crate::config::read_top_level_config();
+    for (name, header) in benches {
+        println!(" > {}: {}", name, header.description);
+    }
+
+    let name = prompt_benchmark_name();
+    let run_id = prompt_run_id(&name);
+    remove_benchmark_run(&name, run_id);
 }

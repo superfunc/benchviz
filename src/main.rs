@@ -6,6 +6,20 @@ mod types;
 
 use clap::clap_app;
 
+// Honestly I'm probably just missing how to get clap to do this
+// behavior naturally, but for now we'll just write a little function.
+fn ensure_name_and_run_id_present<'a>(matches: &'a clap::ArgMatches) -> (Option<&'a str>, Option<&'a str>) {
+    match (matches.value_of("name"), matches.value_of("run_id")) {
+        (Some(name), Some(run_id)) => { (Some(name), Some(run_id)) },
+        (None, None)               => { (None, None) },
+        (_, _) => {
+            println!("Error: must supply either both <name> and <run_id> or neither. \
+                      In the case of neither, a prompt will guide you.");
+            std::process::exit(1);
+        },
+    }
+}
+
 fn main() {
     let matches = clap_app!(benchviz =>
        (version: "1.0")
@@ -22,8 +36,9 @@ fn main() {
           (about: "Information on an individual benchmark")
           (@arg name: +required "Name of benchmark"))
        (@subcommand remove =>
-          (about: "Remove an entire benchmark, or a particular run."))
-       // XXX: Should this just have a dialog asking for the name?
+          (about: "Remove an entire benchmark, or a particular run.")
+          (@arg name: "Name of benchmark")
+          (@arg run_id: "Index of the benchmark run (0-indexed)"))
        (@subcommand compare =>
           (about: "Compare two runs from a benchmark")
           (@arg name: +required "Name of benchmark")
@@ -42,8 +57,17 @@ fn main() {
         crate::io::create_new_individual_benchmark();
     } else if let Some(v) = matches.subcommand_matches("info") {
         crate::io::print_individual_bench_info(v.value_of("name").unwrap());
-    } else if let Some(_) = matches.subcommand_matches("remove") {
-        crate::io::remove_benchmark_run();
+    } else if let Some(v) = matches.subcommand_matches("remove") {
+        match ensure_name_and_run_id_present(&v) {
+            (Some(name), Some(run_id)) => {
+                match crate::io::parse_run_id(&name, &run_id) {
+                    Some(parsed_run_id) => crate::io::remove_benchmark_run(&name, parsed_run_id),
+                    None => {}
+                }
+            }, 
+            (None, None) => crate::io::remove_benchmark_run_with_prompt(),
+            (_, _) => unreachable!()
+        }
     } else if let Some(v) = matches.subcommand_matches("run") {
         crate::io::run_individual_benchmark(v.value_of("name").unwrap());
     } else if let Some(v) = matches.subcommand_matches("plot") {
