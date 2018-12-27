@@ -29,7 +29,12 @@ cargo.
 - [ ] Ensure the binary is built with gbench?.
 - [ ] Add more error handling around erroneous output.
 - [x] Clean up redundancy in io.rs around reading configs.
-- [ ] Handle git not being installed on the system.
+- [x] Handle git not being installed on the system.
+- [ ] Use a git library instead of subprocess?
+- [ ] Handle the directory and/or binary being moved
+- [ ] Handle the output of the program not being valid
+- [ ] Handle user trying to run when the git hash hasn't changed
+- [ ] Add a progress bar while gbench is running.
 - [ ] Plotting.
     - [x] Add basic SVG generation for plotting.
     - [ ] Add legend explaining colors for SVG output.
