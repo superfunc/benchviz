@@ -1,5 +1,5 @@
 // Copyright 2018 superfunc, see license.txt for usage details.
-// 
+//
 // Module containing io functionality for printing info to users
 // in the CLI environment
 
@@ -311,4 +311,86 @@ pub fn create_new_individual_benchmark() {
             fs::write(&top_level, serde_json::to_string_pretty(&benches).unwrap()).unwrap();
         }
     }
+}
+
+pub fn remove_benchmark_run() {
+    print_banner();
+    println!("Current benchmarks (run info command for more info): ");
+    let benches = crate::config::read_top_level_config();
+    for (name, header) in benches {
+        println!("\n{}: {}", name, header.description);
+    }
+
+    'namePromptLoop: loop {
+        let name: String = dialoguer::Input::new()
+            .with_prompt("Which benchmark would you like to remove?")
+            .interact()
+            .unwrap();
+
+        if let Some((_, mut info)) = lookup_benchmark(&name) {
+            'runIdPromptLoop: loop {
+                let num_runs = info.benchmarks.len();
+                let prompt = format!(
+                    "{} has {} runs, which would \
+                     you like to remove? (Enter * for all)",
+                    &name, num_runs
+                );
+                let run_id: String = dialoguer::Input::new()
+                    .with_prompt(&prompt)
+                    .interact()
+                    .unwrap();
+
+                if run_id == "*" {
+                    info.benchmarks.clear();
+                    info.commentary.clear();
+                    info.source_hashes.clear();
+                    break 'runIdPromptLoop;
+                } else {
+                    match run_id.parse::<usize>() {
+                        Ok(val) => {
+                            let len_benches = info.benchmarks.len();
+                            let len_comments = info.commentary.len();
+                            let len_hashes = info.commentary.len();
+
+                            if len_benches != len_comments || len_comments != len_hashes {
+                                println!("Benchmarks file in inconsistent state, perhaps it was hand edited?");
+                                std::process::exit(1);
+                            }
+
+                            if val >= len_benches {
+                                println!("Invalid run id specified, try again");
+                            }
+
+                            info.benchmarks.remove(val);
+                            info.commentary.remove(val);
+                            info.source_hashes.remove(val);
+                            break 'runIdPromptLoop;
+                        }
+                        Err(_) => {
+                            println!("Unparseable unsigned supplied, try again.");
+                            continue 'runIdPromptLoop;
+                        }
+                    }
+                }
+            }
+
+            let path = crate::config::get_individual_config_file(&name);
+            match serde_json::to_string_pretty(&info) {
+                Ok(content) => match fs::write(&path, &content) {
+                    Ok(_) => {
+                        break 'namePromptLoop;
+                    }
+                    Err(_) => {
+                        println!("Failed to write results to config file.");
+                    }
+                },
+                Err(_) => {
+                    println!("Failed to write results back to json.");
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
+    print_banner();
 }

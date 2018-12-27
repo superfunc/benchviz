@@ -21,6 +21,9 @@ fn main() {
        (@subcommand info =>
           (about: "Information on an individual benchmark")
           (@arg name: +required "Name of benchmark"))
+       (@subcommand remove =>
+          (about: "Remove an entire benchmark, or a particular run."))
+       // XXX: Should this just have a dialog asking for the name?
        (@subcommand compare =>
           (about: "Compare two runs from a benchmark")
           (@arg name: +required "Name of benchmark")
@@ -39,6 +42,8 @@ fn main() {
         crate::io::create_new_individual_benchmark();
     } else if let Some(v) = matches.subcommand_matches("info") {
         crate::io::print_individual_bench_info(v.value_of("name").unwrap());
+    } else if let Some(_) = matches.subcommand_matches("remove") {
+        crate::io::remove_benchmark_run();
     } else if let Some(v) = matches.subcommand_matches("run") {
         crate::io::run_individual_benchmark(v.value_of("name").unwrap());
     } else if let Some(v) = matches.subcommand_matches("plot") {

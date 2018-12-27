@@ -1,5 +1,5 @@
 // Copyright 2018 superfunc, see license.txt for usage details.
-// 
+//
 // Module containing config functionality, including fetching the
 // contents of the config file, as well as sub-config info.
 
