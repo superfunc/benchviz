@@ -4,7 +4,7 @@ stages:
     - format
     - base
     - sanitize 
-
+install: rustup component add rustfmt
 matrix:
     include:
         - name: "Check formatting"
