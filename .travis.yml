@@ -19,28 +19,7 @@ matrix:
         - name: "Memory Sanitizer Test"
           rust: 'nightly'
           env: RUSTFLAGS="-Z sanitizer=memory"
-        
-        # mac os
-        - name: "Base build + test"
-          rust: '1.31.0'
-          os: macos
-        - name: "Thread Sanitizer Test"
-          rust: 'nightly'
-          env: RUSTFLAGS="-Z sanitizer=thread"
-          os: macos
-        - name: "Address Sanitizer Test"
-          rust: 'nightly'
-          env: RUSTFLAGS="-Z sanitizer=address"
-          os: macos
-        - name: "Leak Sanitizer Test"
-          rust: 'nightly'
-          env: RUSTFLAGS="-Z sanitizer=leak"
-          os: macos
-        - name: "Memory Sanitizer Test"
-          rust: 'nightly'
-          env: RUSTFLAGS="-Z sanitizer=memory"
-          os: macos
 
 script:
   - cargo build --verbose --all
-  - cargo test --verbose --all
+  - cargo test --verbose --all --target x86_64-unknown-linux-gnu
