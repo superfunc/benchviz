@@ -8,11 +8,14 @@ install:
     - rustup default stable
     - rustup component add rustfmt
     - rustup component add clippy
+    - rustup default nightly
+    - rustup component add rustfmt
+    - rustup component add clippy
 matrix:
     include:
         - name: "formatter"
-          rust: 'stable'
-          script: cargo fmt --all
+          rust: 'nightly'
+          script: cargo fmt --all -- --check
           stage: preliminary
 
         - name: "linter"

@@ -133,12 +133,7 @@ fn prompt_run_id(name: &str) -> crate::types::RunId {
     }
 }
 
-pub fn print_comparison(
-    name: &str,
-    run_id_1_wrapped: crate::types::RunId,
-    run_id_2_wrapped: crate::types::RunId
-)
-{
+pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_id_2_wrapped: crate::types::RunId) {
     if let (Some((header, info)), crate::types::RunId::Index(run_id_1), crate::types::RunId::Index(run_id_2)) =
         (lookup_benchmark(name), run_id_1_wrapped, run_id_2_wrapped)
     {

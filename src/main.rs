@@ -43,7 +43,7 @@ fn handle_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, &types::Ru
                 if let Some(parsed_run_id) = io::parse_run_id(&name, &run_id) {
                     f(&name, &parsed_run_id);
                 }
-            },
+            }
             (None, None) => g(),
             (_, _) => unreachable!()
         }
