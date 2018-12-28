@@ -12,14 +12,28 @@ matrix:
           script: cargo fmt --all
           stage: format
 
-        - name: "Base build + test"
+        - name: "base build + test"
           rust: 'nightly'
           script: cargo build && cargo test
           stage: base
 
-        - name: "Address Sanitizer Test"
+        - name: "address sanitizer test"
           rust: 'nightly'
-          env: RUSTFLAGS="-Z sanitizer=address"
-          env: ASAN_OPTIONS="detect_odr_violation=0"
+          env: rustflags="-z sanitizer=address"
+          env: asan_options="detect_odr_violation=0"
           script: cargo build --all && cargo test --all --target x86_64-unknown-linux-gnu
           stage: sanitize
+
+        - name: "base build + test"
+          rust: 'nightly'
+          script: cargo build && cargo test
+          stage: base
+          os: macos
+
+        - name: "address sanitizer test"
+          rust: 'nightly'
+          env: rustflags="-z sanitizer=address"
+          env: asan_options="detect_odr_violation=0"
+          script: cargo build --all && cargo test --all --target x86_64-unknown-linux-gnu
+          stage: sanitize
+          os: macos
