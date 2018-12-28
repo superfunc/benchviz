@@ -1,13 +1,13 @@
 language: rust
 cache: cargo
 stages:
-    - format
+    - preliminary 
     - base
     - sanitize 
 install: rustup component add rustfmt
 matrix:
     include:
-        - name: "Check formatting"
+        - name: "check formatting"
           rust: 'nightly'
           script: cargo fmt --all
           stage: format
@@ -31,11 +31,8 @@ matrix:
           stage: base
           os: osx
 
-        - name: "address sanitizer test"
+        - name: "base build + test"
           rust: 'nightly'
-          env: 
-            - rustflags="-z sanitizer=address"
-            - asan_options="detect_odr_violation=0"
-          script: cargo build --all && cargo test --all --target x86_64-unknown-linux-gnu
-          stage: sanitize
-          os: osx
+          script: cargo build && cargo test
+          stage: base
+          os: windows
