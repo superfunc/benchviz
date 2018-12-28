@@ -64,7 +64,7 @@ pub struct BenchHeader {
     pub description: String
 }
 
-pub enum BenchmarkRunId {
+pub enum RunId {
     Index(usize),
     All
 }

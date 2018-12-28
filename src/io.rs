@@ -73,11 +73,11 @@ fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
     }
 }
 
-pub fn parse_run_id(name: &str, run_id: &str) -> Option<crate::types::BenchmarkRunId> {
+pub fn parse_run_id(name: &str, run_id: &str) -> Option<crate::types::RunId> {
     let info = crate::config::read_individual_config(&name);
 
     if run_id == "*" {
-        return Some(crate::types::BenchmarkRunId::All);
+        return Some(crate::types::RunId::All);
     } else {
         match run_id.parse::<usize>() {
             Ok(val) => {
@@ -94,7 +94,7 @@ pub fn parse_run_id(name: &str, run_id: &str) -> Option<crate::types::BenchmarkR
                     println!("Invalid run id specified, try again");
                 }
 
-                return Some(crate::types::BenchmarkRunId::Index(val));
+                return Some(crate::types::RunId::Index(val));
             }
             Err(_) => {
                 println!("Unparseable unsigned supplied, try again.");
@@ -115,7 +115,7 @@ fn prompt_benchmark_name() -> String {
     }
 }
 
-fn prompt_run_id(name: &str) -> crate::types::BenchmarkRunId {
+fn prompt_run_id(name: &str) -> crate::types::RunId {
     let info = crate::config::read_individual_config(&name);
 
     loop {
@@ -137,8 +137,15 @@ fn prompt_run_id(name: &str) -> crate::types::BenchmarkRunId {
     }
 }
 
-pub fn print_comparison(name: &str, run_id_1: usize, run_id_2: usize) {
-    if let Some((header, info)) = lookup_benchmark(name) {
+pub fn print_comparison(
+    name: &str,
+    run_id_1_wrapped: crate::types::RunId,
+    run_id_2_wrapped: crate::types::RunId
+)
+{
+    if let (Some((header, info)), crate::types::RunId::Index(run_id_1), crate::types::RunId::Index(run_id_2)) =
+        (lookup_benchmark(name), run_id_1_wrapped, run_id_2_wrapped)
+    {
         let num_runs = info.commentary.len();
         if run_id_1 >= num_runs {
             println!("Invalid run id specified ({}), only {} runs recorded", run_id_1, num_runs);
@@ -216,6 +223,14 @@ pub fn print_individual_bench_info(name: &str) {
             println!(" > Run #{} ({}): {}", i, info.source_hashes[i].get(..8).unwrap(), info.commentary[i]);
         }
     }
+}
+
+pub fn print_comparison_with_prompt() {
+    unimplemented!();
+}
+
+pub fn plot_individual_benchmark_with_prompt() {
+    unimplemented!();
 }
 
 pub fn plot_individual_benchmark(name: &str) {
@@ -309,15 +324,15 @@ pub fn create_new_individual_benchmark() {
     }
 }
 
-pub fn remove_benchmark_run(name: &str, run_id: crate::types::BenchmarkRunId) {
+pub fn remove_benchmark_run(name: &str, run_id: crate::types::RunId) {
     let mut info = crate::config::read_individual_config(&name);
     match run_id {
-        crate::types::BenchmarkRunId::All => {
+        crate::types::RunId::All => {
             info.benchmarks.clear();
             info.commentary.clear();
             info.source_hashes.clear();
         }
-        crate::types::BenchmarkRunId::Index(val) => {
+        crate::types::RunId::Index(val) => {
             info.benchmarks.remove(val);
             info.commentary.remove(val);
             info.source_hashes.remove(val);

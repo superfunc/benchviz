@@ -4,19 +4,63 @@ mod config;
 mod io;
 mod types;
 
-use clap::clap_app;
+use clap::{clap_app, ArgMatches};
 
 // Honestly I'm probably just missing how to get clap to do this
 // behavior naturally, but for now we'll just write a little function.
-fn ensure_name_and_run_id_present<'a>(matches: &'a clap::ArgMatches) -> (Option<&'a str>, Option<&'a str>) {
-    match (matches.value_of("name"), matches.value_of("run_id")) {
-        (Some(name), Some(run_id)) => { (Some(name), Some(run_id)) },
-        (None, None)               => { (None, None) },
+fn parse_bench_id<'a>(matches: &'a ArgMatches, id: &str) -> (Option<&'a str>, Option<&'a str>) {
+    match (matches.value_of("name"), matches.value_of(&id)) {
+        (Some(name), Some(run_id)) => (Some(name), Some(run_id)),
+        (None, None) => (None, None),
         (_, _) => {
-            println!("Error: must supply either both <name> and <run_id> or neither. \
-                      In the case of neither, a prompt will guide you.");
+            println!(
+                "Error: must supply either both <name> and <run_id> or neither. \
+                 In the case of neither, a prompt will guide you."
+            );
             std::process::exit(1);
-        },
+        }
+    }
+}
+
+// Global queries require no benchmark identifier; they speak on the global state of the program
+fn handle_global_query(id: &str, matches: &ArgMatches, f: &Fn() -> ()) {
+    if let Some(_) = matches.subcommand_matches(&id) {
+        f();
+    }
+}
+
+// Benchmark queries require a valid benchmark identifier; they speak on the specifics for a benchmark.
+fn handle_benchmark_query(id: &str, matches: &ArgMatches, f: &Fn(&str) -> ()) {
+    if let Some(v) = matches.subcommand_matches(&id) {
+        f(v.value_of("name").unwrap());
+    }
+}
+
+fn handle_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, types::RunId) -> (), g: &Fn() -> ()) {
+    if let Some(v) = matches.subcommand_matches(&id) {
+        match parse_bench_id(&v, "run_id") {
+            (Some(name), Some(run_id)) => match io::parse_run_id(&name, &run_id) {
+                Some(parsed_run_id) => f(&name, parsed_run_id),
+                None => {}
+            },
+            (None, None) => g(),
+            (_, _) => unreachable!()
+        }
+    }
+}
+
+fn handle_multi_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, types::RunId, types::RunId) -> (), g: &Fn() -> ()) {
+    if let Some(v) = matches.subcommand_matches(&id) {
+        match (v.value_of("name"), v.value_of("run_id_1"), v.value_of("run_id_2")) {
+            (Some(name), Some(run_id_1), Some(run_id_2)) => {
+                match (io::parse_run_id(&name, &run_id_1), io::parse_run_id(&name, &run_id_2)) {
+                    (Some(parsed_run_id_1), Some(parsed_run_id_2)) => f(&name, parsed_run_id_1, parsed_run_id_2),
+                    (_, _) => {}
+                }
+            }
+            (None, None, None) => g(),
+            (_, _, _) => unreachable!()
+        }
     }
 }
 
@@ -49,33 +93,13 @@ fn main() {
           (@arg name: +required "Name of benchmark")))
     .get_matches();
 
-    crate::config::ensure_initialized();
+    config::ensure_initialized();
 
-    if let Some(_) = matches.subcommand_matches("list") {
-        crate::io::print_current_benchmarks();
-    } else if let Some(_) = matches.subcommand_matches("new") {
-        crate::io::create_new_individual_benchmark();
-    } else if let Some(v) = matches.subcommand_matches("info") {
-        crate::io::print_individual_bench_info(v.value_of("name").unwrap());
-    } else if let Some(v) = matches.subcommand_matches("remove") {
-        match ensure_name_and_run_id_present(&v) {
-            (Some(name), Some(run_id)) => {
-                match crate::io::parse_run_id(&name, &run_id) {
-                    Some(parsed_run_id) => crate::io::remove_benchmark_run(&name, parsed_run_id),
-                    None => {}
-                }
-            }, 
-            (None, None) => crate::io::remove_benchmark_run_with_prompt(),
-            (_, _) => unreachable!()
-        }
-    } else if let Some(v) = matches.subcommand_matches("run") {
-        crate::io::run_individual_benchmark(v.value_of("name").unwrap());
-    } else if let Some(v) = matches.subcommand_matches("plot") {
-        crate::io::plot_individual_benchmark(v.value_of("name").unwrap());
-    } else if let Some(v) = matches.subcommand_matches("compare") {
-        let run_1 = v.value_of("run_id_1").unwrap().parse::<usize>().unwrap();
-        let run_2 = v.value_of("run_id_2").unwrap().parse::<usize>().unwrap();
-        let name = v.value_of("name").unwrap();
-        crate::io::print_comparison(name, run_1, run_2);
-    }
+    handle_global_query("list", &matches, &io::print_current_benchmarks);
+    handle_global_query("new", &matches, &io::create_new_individual_benchmark);
+    handle_benchmark_query("plot", &matches, &io::plot_individual_benchmark);
+    handle_benchmark_query("info", &matches, &io::print_individual_bench_info);
+    handle_benchmark_query("run", &matches, &io::run_individual_benchmark);
+    handle_run_data_query("remove", &matches, &io::remove_benchmark_run, &io::remove_benchmark_run_with_prompt);
+    handle_multi_run_data_query("compare", &matches, &io::print_comparison, &io::print_comparison_with_prompt);
 }
