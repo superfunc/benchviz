@@ -10,7 +10,7 @@ matrix:
         - name: "check formatting"
           rust: 'nightly'
           script: cargo fmt --all
-          stage: format
+          stage: preliminary 
 
         - name: "base build + test"
           rust: 'nightly'
