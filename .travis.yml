@@ -1,4 +1,23 @@
 language: rust
+cache: cargo
 rust:
     - 1.31.0
-cache: cargo
+matrix:
+    include:
+        - name: "Base build + test"
+          rust: '1.31.0'
+        - name: "Thread Sanitizer Test"
+          rust: '1.31.0'
+          env: RUSTFLAGS="-Z sanitizer=thread"
+        - name: "Address Sanitizer Test"
+          rust: '1.31.0'
+          env: RUSTFLAGS="-Z sanitizer=address"
+        - name: "Leak Sanitizer Test"
+          rust: '1.31.0'
+          env: RUSTFLAGS="-Z sanitizer=leak"
+        - name: "Memory Sanitizer Test"
+          rust: '1.31.0'
+          env: RUSTFLAGS="-Z sanitizer=memory"
+script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
