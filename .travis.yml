@@ -8,12 +8,12 @@ install: rustup component add rustfmt
 matrix:
     include:
         - name: "Check formatting"
-          rust: '1.31.0'
+          rust: 'nightly'
           script: cargo fmt --all
           stage: format
 
         - name: "Base build + test"
-          rust: '1.31.0'
+          rust: 'nightly'
           script: cargo build && cargo test
           stage: base
 
