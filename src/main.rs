@@ -24,7 +24,7 @@ fn parse_bench_id<'a>(matches: &'a ArgMatches, id: &str) -> (Option<&'a str>, Op
 
 // Global queries require no benchmark identifier; they speak on the global state of the program
 fn handle_global_query(id: &str, matches: &ArgMatches, f: &Fn() -> ()) {
-    if let Some(_) = matches.subcommand_matches(&id) {
+    if matches.subcommand_matches(&id).is_some() {
         f();
     }
 }
@@ -36,12 +36,13 @@ fn handle_benchmark_query(id: &str, matches: &ArgMatches, f: &Fn(&str) -> ()) {
     }
 }
 
-fn handle_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, types::RunId) -> (), g: &Fn() -> ()) {
+fn handle_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, &types::RunId) -> (), g: &Fn() -> ()) {
     if let Some(v) = matches.subcommand_matches(&id) {
         match parse_bench_id(&v, "run_id") {
-            (Some(name), Some(run_id)) => match io::parse_run_id(&name, &run_id) {
-                Some(parsed_run_id) => f(&name, parsed_run_id),
-                None => {}
+            (Some(name), Some(run_id)) => {
+                if let Some(parsed_run_id) = io::parse_run_id(&name, &run_id) {
+                    f(&name, &parsed_run_id);
+                }
             },
             (None, None) => g(),
             (_, _) => unreachable!()

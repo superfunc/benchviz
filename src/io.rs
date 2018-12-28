@@ -21,11 +21,7 @@ fn open_svg(file: &str) {
 }
 
 fn git_is_available() -> bool {
-    if let Ok(_) = process::Command::new("git").output() {
-        return true;
-    }
-
-    return false;
+    process::Command::new("git").output().is_ok()
 }
 
 fn get_git_diff(source_root: &str, hash1: &str, hash2: &str) -> String {
@@ -102,7 +98,7 @@ pub fn parse_run_id(name: &str, run_id: &str) -> Option<crate::types::RunId> {
         }
     }
 
-    return None;
+    None
 }
 
 fn prompt_benchmark_name() -> String {
@@ -166,11 +162,11 @@ pub fn print_comparison(
             let abs_str = (lhs - rhs).abs().to_string();
 
             if lhs > rhs {
-                return ("-".to_string() + &abs_str).green();
+                ("-".to_string() + &abs_str).green()
             } else if lhs < rhs {
-                return ("+".to_string() + &abs_str).red();
+                ("+".to_string() + &abs_str).red()
             } else {
-                return "0".to_string().blue();
+                "0".to_string().blue()
             }
         };
 
@@ -184,13 +180,11 @@ pub fn print_comparison(
         println!("Time difference(s): ");
         for i in 0..bench_results_1.len() {
             println!(
-                "{}: {}{}{}{}{}: {}",
+                "{}: {}{} Time Diff({}): {}",
                 "Name".white(),
                 bench_results_1[i].name.italic(),
                 " ".to_string().repeat(32 - bench_results_1[i].name.len()),
-                "Time Diff(".to_string(),
                 bench_results_1[i].time_unit.cyan(),
-                ")",
                 diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
             );
         }
@@ -225,10 +219,12 @@ pub fn print_individual_bench_info(name: &str) {
     }
 }
 
+#[allow(dead_code)]
 pub fn print_comparison_with_prompt() {
     unimplemented!();
 }
 
+#[allow(dead_code)]
 pub fn plot_individual_benchmark_with_prompt() {
     unimplemented!();
 }
@@ -240,13 +236,12 @@ pub fn plot_individual_benchmark(name: &str) {
         let mut v = plotlib::view::ContinuousView::new();
         let colors = vec!["magenta", "pink", "teal", "turquoise"];
         let mut start = 0;
-        let mut color_index = 0;
 
-        for run in info.benchmarks {
+        for (color_index, run) in info.benchmarks.iter().enumerate() {
             let mut i = 0;
             for results in run {
                 data.push((i as f64, results.real_time));
-                i = i + 1;
+                i += 1;
             }
 
             lines.push(
@@ -254,12 +249,11 @@ pub fn plot_individual_benchmark(name: &str) {
             );
 
             start += i;
-            color_index += 1;
         }
 
         v = v.y_label("Time(ns)");
-        for i in 0..lines.len() {
-            v = v.add(&lines[i]);
+        for item in &lines {
+            v = v.add(item);
         }
 
         page::Page::single(&v).save("/tmp/test.svg").unwrap();
@@ -324,7 +318,7 @@ pub fn create_new_individual_benchmark() {
     }
 }
 
-pub fn remove_benchmark_run(name: &str, run_id: crate::types::RunId) {
+pub fn remove_benchmark_run(name: &str, run_id: &crate::types::RunId) {
     let mut info = crate::config::read_individual_config(&name);
     match run_id {
         crate::types::RunId::All => {
@@ -333,9 +327,9 @@ pub fn remove_benchmark_run(name: &str, run_id: crate::types::RunId) {
             info.source_hashes.clear();
         }
         crate::types::RunId::Index(val) => {
-            info.benchmarks.remove(val);
-            info.commentary.remove(val);
-            info.source_hashes.remove(val);
+            info.benchmarks.remove(*val);
+            info.commentary.remove(*val);
+            info.source_hashes.remove(*val);
         }
     }
 
@@ -363,5 +357,5 @@ pub fn remove_benchmark_run_with_prompt() {
 
     let name = prompt_benchmark_name();
     let run_id = prompt_run_id(&name);
-    remove_benchmark_run(&name, run_id);
+    remove_benchmark_run(&name, &run_id);
 }

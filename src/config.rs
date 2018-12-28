@@ -31,22 +31,22 @@ pub fn ensure_initialized() {
 
     let config_msg = format!("There is no config directory for bb, can I create one at {}?", &dir.to_string_lossy());
 
-    if !dialoguer::Confirmation::new().with_text(&config_msg).interact().is_ok() {
+    if dialoguer::Confirmation::new().with_text(&config_msg).interact().is_err() {
         println!("Ok, exiting simulation.");
-    } else if !std::fs::create_dir(dir).is_ok() {
+    } else if std::fs::create_dir(dir).is_err() {
         println!("Failed to create config directory");
     }
 }
 
 pub fn read_top_level_config() -> TopLevelBenchInfo {
     let config_file = get_top_level_config_file();
-    if !config_file.is_file() && !(std::fs::File::create(&config_file).is_ok()) {
+    if !config_file.is_file() && std::fs::File::create(&config_file).is_err() {
         println!("Failed to create config file");
         std::process::exit(1);
     }
 
     let contents = std::fs::read(&config_file);
-    if !contents.is_ok() {
+    if contents.is_err() {
         println!("Failed to read config file contents");
         std::process::exit(1);
     }
@@ -54,7 +54,7 @@ pub fn read_top_level_config() -> TopLevelBenchInfo {
     type ConfigParseResult = Result<TopLevelBenchInfo, serde_json::Error>;
     let utf8_contents = String::from_utf8_lossy(&contents.unwrap()).to_string();
     let benches: ConfigParseResult = serde_json::from_str(&utf8_contents);
-    if !benches.is_ok() {
+    if benches.is_err() {
         println!("Failed to parse json from config");
         std::process::exit(1);
     }
@@ -70,14 +70,14 @@ pub fn read_individual_config(name: &str) -> IndividualBenchInfo {
     }
 
     let contents = std::fs::read(&config_file);
-    if !contents.is_ok() {
+    if contents.is_err() {
         println!("Failed to read config file contents");
     }
 
     type ConfigParseResult = Result<IndividualBenchInfo, serde_json::Error>;
     let utf8_contents = String::from_utf8_lossy(&contents.unwrap()).to_string();
     let benches: ConfigParseResult = serde_json::from_str(&utf8_contents);
-    if !benches.is_ok() {
+    if benches.is_err() {
         println!("Failed to parse json from config");
         std::process::exit(1);
     }
