@@ -30,9 +30,3 @@ matrix:
           script: cargo build && cargo test
           stage: base
           os: osx
-
-        - name: "base build + test"
-          rust: 'nightly'
-          script: cargo build && cargo test
-          stage: base
-          os: windows
