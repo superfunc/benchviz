@@ -5,27 +5,28 @@ stages:
     - base 
     - sanitize 
 install: 
+    - rustup default stable
     - rustup component add rustfmt
     - rustup component add clippy
 matrix:
     include:
         - name: "formatter"
-          rust: 'nightly'
+          rust: 'stable'
           script: cargo fmt --all
           stage: preliminary
 
         - name: "linter"
-          rust: 'nightly'
+          rust: 'stable'
           script: cargo clippy --all-features -- -D warnings
           stage: preliminary 
 
         - name: "build + test"
-          rust: 'nightly'
+          rust: 'stable'
           script: cargo build && cargo test
           stage: base
 
         - name: "build + test"
-          rust: 'nightly'
+          rust: 'stable'
           script: cargo build && cargo test
           stage: base
           os: osx
