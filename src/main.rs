@@ -2,6 +2,7 @@
 
 mod config;
 mod io;
+mod git;
 mod types;
 
 use clap::{clap_app, ArgMatches};
@@ -13,9 +14,11 @@ fn parse_bench_id<'a>(matches: &'a ArgMatches, id: &str) -> (Option<&'a str>, Op
         (Some(name), Some(run_id)) => (Some(name), Some(run_id)),
         (None, None) => (None, None),
         (_, _) => {
-            println!(
+            use colored::*;
+
+            println!("{}",
                 "Error: must supply either both <name> and <run_id> or neither. \
-                 In the case of neither, a prompt will guide you."
+                 In the case of neither, a prompt will guide you.".red()
             );
             std::process::exit(1);
         }
@@ -31,9 +34,7 @@ fn handle_global_query(id: &str, matches: &ArgMatches, f: &Fn() -> ()) {
 
 // Benchmark queries require a valid benchmark identifier; they speak on the specifics for a benchmark.
 fn handle_benchmark_query(id: &str, matches: &ArgMatches, f: &Fn(&str) -> ()) {
-    if let Some(v) = matches.subcommand_matches(&id) {
-        f(v.value_of("name").unwrap());
-    }
+    if let Some(v) = matches.subcommand_matches(&id) { f(v.value_of("name").unwrap()); }
 }
 
 fn handle_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, &types::RunId) -> (), g: &Fn() -> ()) {
@@ -74,31 +75,27 @@ fn main() {
           (about: "List available benchmarks"))
        (@subcommand new =>
           (about: "Create a new benchmark"))
-       (@subcommand plot =>
-          (about: "Plot the existing runs of a benchmark.")
-          (@arg name: +required "Name of benchmark"))
        (@subcommand info =>
           (about: "Information on an individual benchmark")
           (@arg name: +required "Name of benchmark"))
+       (@subcommand run =>
+          (about: "Run another iteration of a benchmark.")
+          (@arg name: +required "Name of benchmark"))
        (@subcommand remove =>
           (about: "Remove an entire benchmark, or a particular run.")
-          (@arg name: "Name of benchmark")
-          (@arg run_id: "Index of the benchmark run (0-indexed)"))
+          (@arg name: +required "Name of benchmark")
+          (@arg run_id: +required "Index of the benchmark run (0-indexed)"))
        (@subcommand compare =>
           (about: "Compare two runs from a benchmark")
           (@arg name: +required "Name of benchmark")
           (@arg run_id_1: +required "Index of the first run")
-          (@arg run_id_2: +required "Index of the second run"))
-       (@subcommand run =>
-          (about: "Run another iteration of a benchmark.")
-          (@arg name: +required "Name of benchmark")))
+          (@arg run_id_2: +required "Index of the second run")))
     .get_matches();
 
     config::ensure_initialized();
 
     handle_global_query("list", &matches, &io::print_current_benchmarks);
     handle_global_query("new", &matches, &io::create_new_individual_benchmark);
-    handle_benchmark_query("plot", &matches, &io::plot_individual_benchmark);
     handle_benchmark_query("info", &matches, &io::print_individual_bench_info);
     handle_benchmark_query("run", &matches, &io::run_individual_benchmark);
     handle_run_data_query("remove", &matches, &io::remove_benchmark_run, &io::remove_benchmark_run_with_prompt);

@@ -6,64 +6,19 @@
 use std::fs;
 use std::process;
 
-use plotlib::line::{Line, Style};
-use plotlib::page;
-use plotlib::style::Line as OtherLine;
-
-fn open_svg(file: &str) {
-    if cfg!(windows) {
-        process::Command::new("start").arg(&file).spawn().unwrap();
-    } else if cfg!(unix) {
-        process::Command::new("open").arg(&file).spawn().unwrap();
-    } else {
-        panic!("Running on an unsupported operating system, sorry!");
-    }
-}
-
-fn git_is_available() -> bool {
-    process::Command::new("git").output().is_ok()
-}
-
-fn get_git_diff(source_root: &str, hash1: &str, hash2: &str) -> String {
-    if !git_is_available() {
-        return "".to_string();
-    }
-
-    match std::env::current_dir() {
-        Ok(curr) => {
-            std::env::set_current_dir(&source_root).unwrap();
-            let output = process::Command::new("git").arg("diff").arg("--color=always").arg(&hash1).arg(&hash2).output().unwrap();
-            let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-            std::env::set_current_dir(&curr).unwrap();
-            raw.to_string()
-        }
-        _ => "".to_string()
-    }
-}
-
-fn get_git_hash(source_root: &str) -> String {
-    if !git_is_available() {
-        return "".to_string();
-    }
-
-    match std::env::current_dir() {
-        Ok(curr) => {
-            std::env::set_current_dir(&source_root).unwrap();
-            let output = process::Command::new("git").arg("rev-parse").arg("HEAD").output().unwrap();
-            let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
-            std::env::set_current_dir(&curr).unwrap();
-            raw.trim().to_string()
-        }
-        _ => "".to_string()
-    }
-}
-
 fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
     let benches = crate::config::read_top_level_config();
     match benches.get(name) {
         Some(header) => Some((header.clone(), crate::config::read_individual_config(name))),
         None => {
-            println!("Name {:?} not found in benches.", name);
+            use colored::*;
+            println!("{}", format!("> Name {:?} not found in benches.", name).red());
+            println!("{}", "  Currently available benchmarks".red());
+            let benches = crate::config::read_top_level_config();
+            for (id, _) in benches { 
+                let fmt = format!("  > Name: {:?}", id);
+                println!("{}", fmt.red()); 
+            }
             None
         }
     }
@@ -101,12 +56,23 @@ pub fn parse_run_id(name: &str, run_id: &str) -> Option<crate::types::RunId> {
     None
 }
 
-fn prompt_benchmark_name() -> String {
+pub fn prompt_benchmark_name() -> String {
+    let prompt = "Which benchmark?";
     loop {
-        let name: String = dialoguer::Input::new().with_prompt("Which benchmark would you like to remove?").interact().unwrap();
+        let name: String = dialoguer::Input::new().with_prompt(&prompt).interact().unwrap();
 
         if let Some((_, _)) = lookup_benchmark(&name) {
             return name;
+        } else {
+            // TODO: Refactor all this printing stuff
+            use colored::*;
+            println!("{}", "Name not found in benchmarks".red());
+            println!("{}", "Currently available benchmarks".red());
+            let benches = crate::config::read_top_level_config();
+            for (id, _) in benches { 
+                let fmt = format!("> Name: {:?}", id);
+                println!("{}", fmt.red()); 
+            }
         }
     }
 }
@@ -165,29 +131,105 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
             }
         };
 
-        println!("Prelude: ");
+        let sep = "+-----------------------------------------------------------------\
+                   --------------------------------------+";
 
-        // TODO: Users could alter their benchmarks to be inconsistent
-        // we should probably do something to handle this better.
+        println!("{}", sep);
         println!("Comparing run {} and {} from {}", run_id_1, run_id_2, name);
         println!("Run {} description: {}", run_id_1, info.commentary[run_id_1]);
         println!("Run {} description: {}", run_id_2, info.commentary[run_id_2]);
-        println!("Time difference(s): ");
-        for i in 0..bench_results_1.len() {
-            println!(
-                "{}: {}{} Time Diff({}): {}",
-                "Name".white(),
-                bench_results_1[i].name.italic(),
-                " ".to_string().repeat(32 - bench_results_1[i].name.len()),
-                bench_results_1[i].time_unit.cyan(),
-                diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time)
-            );
+
+        let padding = 3;
+
+        let mut longest_name = 0;
+        let mut longest_run_1_time = 0;
+        let mut longest_run_2_time = 0;
+        let mut longest_time_diff = 0;
+        for (i, b) in bench_results_1.iter().enumerate() {
+            if b.name.len() > longest_name {
+                longest_name = b.name.len();
+            }
+
+            let formatted_time = format!("{}", b.real_time);
+            if formatted_time.len() > longest_run_1_time {
+                longest_run_1_time = formatted_time.len();
+            }
+
+            let diff = diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time);
+            if diff.len() > longest_time_diff {
+                longest_time_diff = diff.len();
+            }
         }
 
+        longest_name += padding;
+
+        for b in bench_results_2 {
+            let formatted_time = format!("{}", b.real_time);
+            if formatted_time.len() > longest_run_2_time {
+                longest_run_2_time = formatted_time.len();
+            }
+        }
+
+        longest_run_1_time += padding;
+        longest_run_2_time += padding;
+        longest_time_diff += padding;
+
+        let name_label = "Name";
+        let run_1_label = format!("Run {} Time", run_id_1);
+        let run_2_label = format!("Run {} Time", run_id_2);
+
+        // TODO: Put in units from gbench
+        let time_diff_label = "Time Diff(ns)";
+        let percent_diff_label = "% Diff";
+
+        println!("{}", sep);
+
+        println!(
+            "{}{}{}{}{}{}{}{}{}",
+            name_label.white(), 
+            " ".to_string().repeat(longest_name-name_label.len()), 
+            run_1_label.white(),
+            " ".to_string().repeat(longest_run_1_time-run_1_label.len()),
+            run_2_label.white(),
+            " ".to_string().repeat(longest_run_2_time-run_2_label.len()),
+            time_diff_label.white(),
+            " ".to_string().repeat(longest_time_diff-time_diff_label.len()),
+            percent_diff_label.white()
+        );
+        for i in 0..bench_results_1.len() {
+            let name_len = bench_results_1[i].name.len();
+            let run_1_time = format!("{}", bench_results_1[i].real_time);
+            let run_2_time = format!("{}", bench_results_2[i].real_time);
+            let time_diff = diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time);
+            // TODO: God this code is so bad right now lol
+            let mut max = 0.0;
+            if bench_results_1[i].real_time > bench_results_2[i].real_time {
+                max = bench_results_1[i].real_time;
+            } else {
+                max = bench_results_2[i].real_time;
+            }
+
+            let percent_diff = 100.0*(bench_results_1[i].real_time - bench_results_2[i].real_time).abs()/max;
+
+            println!(
+                "{}{}{}{}{}{}{}{}{}",
+                bench_results_1[i].name.italic(),
+                " ".to_string().repeat(longest_name - name_len),
+                run_1_time,
+                " ".to_string().repeat(longest_run_1_time - run_1_time.len()),
+                run_2_time,
+                " ".to_string().repeat(longest_run_2_time - run_2_time.len()),
+                time_diff,
+                " ".to_string().repeat(longest_time_diff - time_diff.len()),
+                percent_diff
+            );
+        }
+        println!("{}", sep);
         println!("Source difference(s): ");
         let hash1 = &info.source_hashes[run_id_1];
         let hash2 = &info.source_hashes[run_id_2];
-        println!("{}", get_git_diff(&header.source_root, &hash1, &hash2));
+        println!("{}", crate::git::diff(&header.source_root, &hash1, &hash2));
+        println!("{}", sep);
     }
 }
 
@@ -195,8 +237,8 @@ pub fn print_current_benchmarks() {
     let benches = crate::config::read_top_level_config();
     for (id, info) in benches {
         println!(
-            "\nName: {:?}\nDescription: {:?}\nSource Location: {:?}\
-             \nExecutable Location: {:?}",
+            "> Name: {:?}\n  Description: {:?}\n  Source Location: {:?}\
+             \n  Executable Location: {:?}",
             id, info.description, info.source_root, info.source_bin
         );
     }
@@ -204,12 +246,13 @@ pub fn print_current_benchmarks() {
 
 pub fn print_individual_bench_info(name: &str) {
     if let Some((header, info)) = lookup_benchmark(name) {
-        println!("Description: {}", header.description);
-        println!("Source Location: {}", header.source_root);
-        println!("Executable Location: {}", header.source_bin);
-        println!("Previous run information: ");
+        println!("> Name: {}", name);
+        println!("  Description: {}", header.description);
+        println!("  Source Location: {}", header.source_root);
+        println!("  Executable Location: {}", header.source_bin);
+        println!("  Previous run information: ");
         for i in 0..info.commentary.len() {
-            println!(" > Run #{} ({}): {}", i, info.source_hashes[i].get(..8).unwrap(), info.commentary[i]);
+            println!("  :: Run #{} (git:{}): {}", i, info.source_hashes[i].get(..8).unwrap(), info.commentary[i]);
         }
     }
 }
@@ -217,43 +260,6 @@ pub fn print_individual_bench_info(name: &str) {
 #[allow(dead_code)]
 pub fn print_comparison_with_prompt() {
     unimplemented!();
-}
-
-#[allow(dead_code)]
-pub fn plot_individual_benchmark_with_prompt() {
-    unimplemented!();
-}
-
-pub fn plot_individual_benchmark(name: &str) {
-    if let Some((_, info)) = lookup_benchmark(name) {
-        let mut data: Vec<(f64, f64)> = vec![];
-        let mut lines: Vec<Line> = vec![];
-        let mut v = plotlib::view::ContinuousView::new();
-        let colors = vec!["magenta", "pink", "teal", "turquoise"];
-        let mut start = 0;
-
-        for (color_index, run) in info.benchmarks.iter().enumerate() {
-            let mut i = 0;
-            for results in run {
-                data.push((i as f64, results.real_time));
-                i += 1;
-            }
-
-            lines.push(
-                Line::new(&data[start..data.len()]).style(Style::new().colour(colors[color_index % colors.len()]).width(4.2))
-            );
-
-            start += i;
-        }
-
-        v = v.y_label("Time(ns)");
-        for item in &lines {
-            v = v.add(item);
-        }
-
-        page::Page::single(&v).save("/tmp/test.svg").unwrap();
-        open_svg("/tmp/test.svg");
-    }
 }
 
 pub fn run_individual_benchmark(name: &str) {
@@ -267,7 +273,7 @@ pub fn run_individual_benchmark(name: &str) {
         let new_benches: crate::types::BenchRunResult = serde_json::from_str(&raw).unwrap();
         info.benchmarks.push(new_benches.benchmarks);
         info.commentary.push(desc);
-        info.source_hashes.push(get_git_hash(&header.source_root));
+        info.source_hashes.push(crate::git::hash(&header.source_root));
         let path = crate::config::get_individual_config_file(name);
         fs::write(&path, serde_json::to_string_pretty(&info).unwrap()).unwrap();
     }
