@@ -42,4 +42,3 @@ pub fn hash(source_root: &str) -> String {
         _ => "".to_string()
     }
 }
-

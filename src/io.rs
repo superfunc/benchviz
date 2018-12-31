@@ -15,9 +15,9 @@ fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
             println!("{}", format!("> Name {:?} not found in benches.", name).red());
             println!("{}", "  Currently available benchmarks".red());
             let benches = crate::config::read_top_level_config();
-            for (id, _) in benches { 
+            for (id, _) in benches {
                 let fmt = format!("  > Name: {:?}", id);
-                println!("{}", fmt.red()); 
+                println!("{}", fmt.red());
             }
             None
         }
@@ -69,9 +69,9 @@ pub fn prompt_benchmark_name() -> String {
             println!("{}", "Name not found in benchmarks".red());
             println!("{}", "Currently available benchmarks".red());
             let benches = crate::config::read_top_level_config();
-            for (id, _) in benches { 
+            for (id, _) in benches {
                 let fmt = format!("> Name: {:?}", id);
-                println!("{}", fmt.red()); 
+                println!("{}", fmt.red());
             }
         }
     }
@@ -186,14 +186,14 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
 
         println!(
             "{}{}{}{}{}{}{}{}{}",
-            name_label.white(), 
-            " ".to_string().repeat(longest_name-name_label.len()), 
+            name_label.white(),
+            " ".to_string().repeat(longest_name - name_label.len()),
             run_1_label.white(),
-            " ".to_string().repeat(longest_run_1_time-run_1_label.len()),
+            " ".to_string().repeat(longest_run_1_time - run_1_label.len()),
             run_2_label.white(),
-            " ".to_string().repeat(longest_run_2_time-run_2_label.len()),
+            " ".to_string().repeat(longest_run_2_time - run_2_label.len()),
             time_diff_label.white(),
-            " ".to_string().repeat(longest_time_diff-time_diff_label.len()),
+            " ".to_string().repeat(longest_time_diff - time_diff_label.len()),
             percent_diff_label.white()
         );
         for i in 0..bench_results_1.len() {
@@ -209,7 +209,7 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
                 max = bench_results_2[i].real_time;
             }
 
-            let percent_diff = 100.0*(bench_results_1[i].real_time - bench_results_2[i].real_time).abs()/max;
+            let percent_diff = 100.0 * (bench_results_1[i].real_time - bench_results_2[i].real_time).abs() / max;
 
             println!(
                 "{}{}{}{}{}{}{}{}{}",

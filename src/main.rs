@@ -1,8 +1,8 @@
 // Copyright 2018 superfunc, see license.txt for usage details.
 
 mod config;
-mod io;
 mod git;
+mod io;
 mod types;
 
 use clap::{clap_app, ArgMatches};
@@ -16,9 +16,11 @@ fn parse_bench_id<'a>(matches: &'a ArgMatches, id: &str) -> (Option<&'a str>, Op
         (_, _) => {
             use colored::*;
 
-            println!("{}",
+            println!(
+                "{}",
                 "Error: must supply either both <name> and <run_id> or neither. \
-                 In the case of neither, a prompt will guide you.".red()
+                 In the case of neither, a prompt will guide you."
+                    .red()
             );
             std::process::exit(1);
         }
@@ -34,7 +36,9 @@ fn handle_global_query(id: &str, matches: &ArgMatches, f: &Fn() -> ()) {
 
 // Benchmark queries require a valid benchmark identifier; they speak on the specifics for a benchmark.
 fn handle_benchmark_query(id: &str, matches: &ArgMatches, f: &Fn(&str) -> ()) {
-    if let Some(v) = matches.subcommand_matches(&id) { f(v.value_of("name").unwrap()); }
+    if let Some(v) = matches.subcommand_matches(&id) {
+        f(v.value_of("name").unwrap());
+    }
 }
 
 fn handle_run_data_query(id: &str, matches: &ArgMatches, f: &Fn(&str, &types::RunId) -> (), g: &Fn() -> ()) {
