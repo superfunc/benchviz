@@ -11,6 +11,7 @@ clap = "2.32.0"
 dialoguer = "0.3.0"
 dirs = "1.0.4"
 colored = "1.6"
+prettytable-rs = { version = "^0.8", default-features=false }
 
 [badges]
 travis-ci = { repository = "superfunc/benchviz" }

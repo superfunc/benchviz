@@ -104,6 +104,11 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
         (lookup_benchmark(name), run_id_1_wrapped, run_id_2_wrapped)
     {
         let num_runs = info.commentary.len();
+        if num_runs == 0 {
+            println!("No runs are currently recorded!");
+            return;
+        }
+
         if run_id_1 >= num_runs {
             println!("Invalid run id specified ({}), only {} runs recorded", run_id_1, num_runs);
             return;
@@ -116,120 +121,56 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
 
         let bench_results_1 = &info.benchmarks[run_id_1];
         let bench_results_2 = &info.benchmarks[run_id_2];
+        let mut output: Vec<String> = vec![];
+        for result in bench_results_1.iter().zip(bench_results_2.iter()) {
+            let (lhs, rhs) = &result;
+
+            let name = &lhs.name;
+            let lhs_time = lhs.real_time;
+            let rhs_time = rhs.real_time;
+            let abs_diff = rhs_time - lhs_time;
+            let percent_diff = 100.0 * (rhs_time - lhs_time) / rhs_time;
+            let improvement = rhs_time / lhs_time;
+            output.push(format!(
+                "{}\t{:0^.5}\t{:0^.5}\t{:0^.5}\t{:0^.5}\t{:0^.5}",
+                name, lhs_time, rhs_time, abs_diff, percent_diff, improvement
+            ));
+        }
+
+        let content = &output[0].as_bytes();
+        let mut seeking_ws = true;
+        let mut positions : Vec<usize> = vec![];
+        for i in 0..content.len() {
+            if seeking_ws && (content[i] as char).is_whitespace() {
+                seeking_ws = false;
+                continue;
+            } 
+
+            if !seeking_ws && !(content[i] as char).is_whitespace() {
+                seeking_ws = true;
+                positions.push(i);
+            }
+        }
+
+        println!("Positions: {:?}", positions);
 
         use colored::*;
-
-        let diff_str = |lhs: f64, rhs: f64| {
-            let abs_str = (lhs - rhs).abs().to_string();
-
-            if lhs > rhs {
-                ("-".to_string() + &abs_str).green()
-            } else if lhs < rhs {
-                ("+".to_string() + &abs_str).red()
-            } else {
-                "0".to_string().blue()
-            }
-        };
-
-        let sep = "+-----------------------------------------------------------------\
-                   --------------------------------------+";
-
-        println!("{}", sep);
-        println!("Comparing run {} and {} from {}", run_id_1, run_id_2, name);
-        println!("Run {} description: {}", run_id_1, info.commentary[run_id_1]);
-        println!("Run {} description: {}", run_id_2, info.commentary[run_id_2]);
-
-        let padding = 3;
-
-        let mut longest_name = 0;
-        let mut longest_run_1_time = 0;
-        let mut longest_run_2_time = 0;
-        let mut longest_time_diff = 0;
-        for (i, b) in bench_results_1.iter().enumerate() {
-            if b.name.len() > longest_name {
-                longest_name = b.name.len();
-            }
-
-            let formatted_time = format!("{}", b.real_time);
-            if formatted_time.len() > longest_run_1_time {
-                longest_run_1_time = formatted_time.len();
-            }
-
-            let diff = diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time);
-            if diff.len() > longest_time_diff {
-                longest_time_diff = diff.len();
-            }
-        }
-
-        longest_name += padding;
-
-        for b in bench_results_2 {
-            let formatted_time = format!("{}", b.real_time);
-            if formatted_time.len() > longest_run_2_time {
-                longest_run_2_time = formatted_time.len();
-            }
-        }
-
-        longest_run_1_time += padding;
-        longest_run_2_time += padding;
-        longest_time_diff += padding;
-
-        let name_label = "Name";
-        let run_1_label = format!("Run {} Time", run_id_1);
-        let run_2_label = format!("Run {} Time", run_id_2);
-
-        // TODO: Put in units from gbench
-        let time_diff_label = "Time Diff(ns)";
-        let percent_diff_label = "% Diff";
-
-        println!("{}", sep);
-
         println!(
             "{}{}{}{}{}{}{}{}{}",
-            name_label.white(),
-            " ".to_string().repeat(longest_name - name_label.len()),
-            run_1_label.white(),
-            " ".to_string().repeat(longest_run_1_time - run_1_label.len()),
-            run_2_label.white(),
-            " ".to_string().repeat(longest_run_2_time - run_2_label.len()),
-            time_diff_label.white(),
-            " ".to_string().repeat(longest_time_diff - time_diff_label.len()),
-            percent_diff_label.white()
+            "Name".white(),
+            " ".to_string().repeat(positions[0]),
+            format!("Run {} Time", run_id_1).white(),
+            " ".to_string().repeat(positions[1]-positions[0]),
+            format!("Run {} Time", run_id_2).white(),
+            " ".to_string().repeat(positions[2]-positions[1]-5),
+            "Abs Diff",
+            "Percent Diff",
+            "X Faster"
         );
-        for i in 0..bench_results_1.len() {
-            let name_len = bench_results_1[i].name.len();
-            let run_1_time = format!("{}", bench_results_1[i].real_time);
-            let run_2_time = format!("{}", bench_results_2[i].real_time);
-            let time_diff = diff_str(bench_results_1[i].real_time, bench_results_2[i].real_time);
-            // TODO: God this code is so bad right now lol
-            let mut max = 0.0;
-            if bench_results_1[i].real_time > bench_results_2[i].real_time {
-                max = bench_results_1[i].real_time;
-            } else {
-                max = bench_results_2[i].real_time;
-            }
 
-            let percent_diff = 100.0 * (bench_results_1[i].real_time - bench_results_2[i].real_time).abs() / max;
-
-            println!(
-                "{}{}{}{}{}{}{}{}{}",
-                bench_results_1[i].name.italic(),
-                " ".to_string().repeat(longest_name - name_len),
-                run_1_time,
-                " ".to_string().repeat(longest_run_1_time - run_1_time.len()),
-                run_2_time,
-                " ".to_string().repeat(longest_run_2_time - run_2_time.len()),
-                time_diff,
-                " ".to_string().repeat(longest_time_diff - time_diff.len()),
-                percent_diff
-            );
+        for line in output {
+            println!("{}", line);
         }
-        println!("{}", sep);
-        println!("Source difference(s): ");
-        let hash1 = &info.source_hashes[run_id_1];
-        let hash2 = &info.source_hashes[run_id_2];
-        println!("{}", crate::git::diff(&header.source_root, &hash1, &hash2));
-        println!("{}", sep);
     }
 }
 
