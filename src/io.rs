@@ -139,12 +139,12 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
 
         let content = &output[0].as_bytes();
         let mut seeking_ws = true;
-        let mut positions : Vec<usize> = vec![];
+        let mut positions: Vec<usize> = vec![];
         for i in 0..content.len() {
             if seeking_ws && (content[i] as char).is_whitespace() {
                 seeking_ws = false;
                 continue;
-            } 
+            }
 
             if !seeking_ws && !(content[i] as char).is_whitespace() {
                 seeking_ws = true;
@@ -160,9 +160,9 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
             "Name".white(),
             " ".to_string().repeat(positions[0]),
             format!("Run {} Time", run_id_1).white(),
-            " ".to_string().repeat(positions[1]-positions[0]),
+            " ".to_string().repeat(positions[1] - positions[0]),
             format!("Run {} Time", run_id_2).white(),
-            " ".to_string().repeat(positions[2]-positions[1]-5),
+            " ".to_string().repeat(positions[2] - positions[1] - 5),
             "Abs Diff",
             "Percent Diff",
             "X Faster"
