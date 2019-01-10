@@ -13,6 +13,4 @@ I'm launching git in a subprocess in src/io.rs.
 
 ##### Dependencies
 
-This tool utilizes git to do diffing, if you don't have it installed
-that feature will be turned off. Every other dependency is installed through
-cargo.
+This tool utilizes git to do diffing, so that is required.
