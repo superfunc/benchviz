@@ -23,6 +23,13 @@ pub fn get_top_level_config_file() -> std::path::PathBuf {
     get_config_root_dir().join("top.json")
 }
 
+pub fn ensure_dependencies_available() {
+    if !crate::git::is_available() {
+        println!("Failed to find dependency \"git\"");
+        std::process::exit(1);
+    }
+}
+
 pub fn ensure_initialized() {
     let dir = get_config_root_dir().to_owned();
     if dir.exists() {

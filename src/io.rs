@@ -145,7 +145,11 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
             ]);
         }
 
-        println!("{}", output);
+        let lhs_hash = &info.source_hashes[run_id_1];
+        let rhs_hash = &info.source_hashes[run_id_2];
+
+        println!("Performance Diffs: \n{}", output);
+        println!("Source Diffs: \n{}", crate::git::diff(&header.source_root, &lhs_hash, &rhs_hash));
     }
 }
 

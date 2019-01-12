@@ -96,6 +96,7 @@ fn main() {
           (@arg run_id_2: +required "Index of the second run")))
     .get_matches();
 
+    config::ensure_dependencies_available();
     config::ensure_initialized();
 
     handle_global_query("list", &matches, &io::print_current_benchmarks);

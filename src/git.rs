@@ -5,7 +5,7 @@
 
 use std::process;
 
-fn is_available() -> bool {
+pub fn is_available() -> bool {
     process::Command::new("git").output().is_ok()
 }
 
