@@ -6,6 +6,8 @@
 use std::fs;
 use std::process;
 
+use prettytable::{cell, row};
+
 fn lookup_benchmark(name: &str) -> crate::types::BenchmarkQuery {
     let benches = crate::config::read_top_level_config();
     match benches.get(name) {
@@ -121,7 +123,9 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
 
         let bench_results_1 = &info.benchmarks[run_id_1];
         let bench_results_2 = &info.benchmarks[run_id_2];
-        let mut output: Vec<String> = vec![];
+        let mut output = prettytable::Table::new();
+        output.set_titles(row!["Name", "LHS Time", "RHS Time", "Absolute Diff", "% Diff", "X Speedup"]);
+
         for result in bench_results_1.iter().zip(bench_results_2.iter()) {
             let (lhs, rhs) = &result;
 
@@ -130,47 +134,18 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
             let rhs_time = rhs.real_time;
             let abs_diff = rhs_time - lhs_time;
             let percent_diff = 100.0 * (rhs_time - lhs_time) / rhs_time;
-            let improvement = rhs_time / lhs_time;
-            output.push(format!(
-                "{}\t{:0^.5}\t{:0^.5}\t{:0^.5}\t{:0^.5}\t{:0^.5}",
-                name, lhs_time, rhs_time, abs_diff, percent_diff, improvement
-            ));
+            let improvement = lhs_time / rhs_time;
+            output.add_row(row![
+                format!("{}", name),
+                format!("{:.3}", lhs_time),
+                format!("{:.3}", rhs_time),
+                format!("{:.3}", abs_diff),
+                format!("{:.3}", percent_diff),
+                format!("{:.3}", improvement)
+            ]);
         }
 
-        let content = &output[0].as_bytes();
-        let mut seeking_ws = true;
-        let mut positions: Vec<usize> = vec![];
-        for i in 0..content.len() {
-            if seeking_ws && (content[i] as char).is_whitespace() {
-                seeking_ws = false;
-                continue;
-            }
-
-            if !seeking_ws && !(content[i] as char).is_whitespace() {
-                seeking_ws = true;
-                positions.push(i);
-            }
-        }
-
-        println!("Positions: {:?}", positions);
-
-        use colored::*;
-        println!(
-            "{}{}{}{}{}{}{}{}{}",
-            "Name".white(),
-            " ".to_string().repeat(positions[0]),
-            format!("Run {} Time", run_id_1).white(),
-            " ".to_string().repeat(positions[1] - positions[0]),
-            format!("Run {} Time", run_id_2).white(),
-            " ".to_string().repeat(positions[2] - positions[1] - 5),
-            "Abs Diff",
-            "Percent Diff",
-            "X Faster"
-        );
-
-        for line in output {
-            println!("{}", line);
-        }
+        println!("{}", output);
     }
 }
 
