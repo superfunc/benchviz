@@ -136,7 +136,7 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
             let percent_diff = 100.0 * (rhs_time - lhs_time) / rhs_time;
             let improvement = lhs_time / rhs_time;
             output.add_row(row![
-                format!("{}", name),
+                name.to_string(),
                 format!("{:.3}", lhs_time),
                 format!("{:.3}", rhs_time),
                 format!("{:.3}", abs_diff),

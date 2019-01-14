@@ -6,7 +6,7 @@ mod git;
 mod io;
 mod types;
 
-use clap::{clap_app};
+use clap::clap_app;
 
 fn main() {
     let matches = clap_app!(benchviz =>
