@@ -3,8 +3,8 @@
 // Module containing io functionality for printing info to users
 // in the CLI environment
 
-use std::path;
 use std::fs;
+use std::path;
 use std::process;
 
 use prettytable::{cell, row};
