@@ -3,6 +3,7 @@
 // Module containing io functionality for printing info to users
 // in the CLI environment
 
+use std::path;
 use std::fs;
 use std::process;
 
@@ -187,6 +188,11 @@ pub fn run_individual_benchmark(name: &str) {
 
     if let Some((header, mut info)) = lookup_benchmark(name) {
         let exe = &header.source_bin;
+        if !path::Path::new(&header.source_bin).exists() {
+            println!("Source bin {} no longer exists!", header.source_bin);
+            std::process::exit(1);
+        }
+
         let output = process::Command::new(&exe).arg("--benchmark_format=json").output().unwrap();
 
         let raw: String = String::from_utf8_lossy(&output.stdout).to_string();
