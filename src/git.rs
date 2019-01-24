@@ -42,3 +42,16 @@ pub fn hash(source_root: &str) -> String {
         _ => "".to_string()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+
+// git module tests
+
+#[test]
+fn check_git_available() {
+    assert!(crate::git::is_available());
+}
+
+}
