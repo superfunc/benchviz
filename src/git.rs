@@ -45,12 +45,15 @@ pub fn hash(source_root: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-
-    // git module tests
-
     #[test]
-    fn check_git_available() {
+    fn check_available() {
         assert!(crate::git::is_available());
     }
 
+    #[test]
+    fn check_hash() {
+        let curr = std::env::current_dir().unwrap();
+        let hash = crate::git::hash(&curr.to_str().unwrap());
+        assert!(hash.len() > 0);
+    }
 }
