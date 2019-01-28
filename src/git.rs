@@ -56,4 +56,12 @@ mod tests {
         let hash = crate::git::hash(&curr.to_str().unwrap());
         assert!(hash.len() > 0);
     }
+
+    #[test]
+    fn check_diff() {
+        let curr = std::env::current_dir().unwrap();
+        let hash = crate::git::hash(&curr.to_str().unwrap());
+        let diff = crate::git::diff(&curr.to_str().unwrap(), &hash, &hash);
+        assert!(diff.len() == 0);
+    }
 }

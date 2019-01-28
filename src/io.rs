@@ -125,7 +125,7 @@ pub fn print_comparison(name: &str, run_id_1_wrapped: crate::types::RunId, run_i
         let bench_results_1 = &info.benchmarks[run_id_1];
         let bench_results_2 = &info.benchmarks[run_id_2];
         let mut output = prettytable::Table::new();
-        output.set_titles(row!["Name", "LHS Time", "RHS Time", "Absolute Diff", "% Diff", "X Speedup"]);
+        output.set_titles(row!["Name", "LHS Time", "RHS Time", "Abs Diff", "% Diff", "X Speedup"]);
 
         for result in bench_results_1.iter().zip(bench_results_2.iter()) {
             let (lhs, rhs) = &result;

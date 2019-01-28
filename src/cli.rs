@@ -6,7 +6,7 @@
 use clap;
 
 // Honestly I'm probably just missing how to get clap to do this
-// behavior naturally, but for now we'll just write a little function.
+// behavior naturally, but for now we'll just write a nice little function.
 pub fn parse_bench_id<'a>(matches: &'a clap::ArgMatches, id: &str) -> (Option<&'a str>, Option<&'a str>) {
     match (matches.value_of("name"), matches.value_of(&id)) {
         (Some(name), Some(run_id)) => (Some(name), Some(run_id)),
