@@ -3,11 +3,17 @@
 // Module containing config functionality, including fetching the
 // contents of the config file, as well as sub-config info.
 
+use std::fs;
+
 use crate::types::{IndividualBenchInfo, TopLevelBenchInfo};
 
 pub fn get_config_root_dir() -> std::path::PathBuf {
     match dirs::config_dir() {
-        Some(root_dir) => root_dir.join(std::path::Path::new("bb/")),
+        Some(root_dir) => {
+            let config_dir = root_dir.join(std::path::Path::new("bb/"));
+            println!("Using config directory at {:?}", config_dir);
+            config_dir
+        }
         None => {
             println!("Failed to create config directory");
             std::process::exit(1);
@@ -31,17 +37,30 @@ pub fn ensure_dependencies_available() {
 }
 
 pub fn ensure_initialized() {
+    // Create our directory structure if needed
     let dir = get_config_root_dir().to_owned();
-    if dir.exists() {
-        return;
+    if !dir.exists() {
+        let config_msg = format!("There is no config directory for bb, can I create one at {}?", &dir.to_string_lossy());
+        if dialoguer::Confirmation::new().with_text(&config_msg).interact().is_err() {
+            println!("Ok, exiting simulation.");
+            return;
+        } else if std::fs::create_dir(&dir).is_err() {
+            println!("Failed to create new directory at {:?}", dir);
+            return;
+        }
     }
 
-    let config_msg = format!("There is no config directory for bb, can I create one at {}?", &dir.to_string_lossy());
+    // Create our top level config files if needed
+    let config_file = get_top_level_config_file();
+    if !config_file.exists() {
+        let empty_bench_info = TopLevelBenchInfo::new();
+        if std::fs::File::create(&config_file).is_err() {
+            println!("Failed to create config file");
+            return;
+        }
 
-    if dialoguer::Confirmation::new().with_text(&config_msg).interact().is_err() {
-        println!("Ok, exiting simulation.");
-    } else if std::fs::create_dir(dir).is_err() {
-        println!("Failed to create config directory");
+        println!("Writing default config file at {:?}", config_file);
+        fs::write(&config_file, serde_json::to_string_pretty(&empty_bench_info).unwrap()).unwrap();
     }
 }
 
